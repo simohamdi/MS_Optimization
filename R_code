@@ -1,0 +1,1526 @@
+#################################################################
+#################################################################
+################### Portfolio Optimization ######################
+######################### R Code ################################
+#################################################################
+#################################################################
+
+
+
+#################################################################
+### Nag Optimization: Problem 1
+
+
+returns=read.csv(file=PathCAC, header=TRUE ,sep=";")
+A=read.csv(file=SectorCAC, header=TRUE ,sep=";")
+
+X=as.matrix(returns)
+n=ncol(returns)
+M=20*10^6  
+bigbnd=1*10^6
+
+list_lambda=seq(-5,5,0.25)
+R=matrix(0,ncol=length(list_lambda),nrow=3+n)
+R_2=matrix(0,ncol=length(list_lambda),nrow=3+n)
+i=0
+ll=-1/5
+uu=1/5
+
+
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+
+#is.positive.definite(H)
+#det(H)
+
+
+aa=as.matrix(rbind(as.matrix(t(A[-1])),matrix(1,nrow=1,ncol=n)),nrow=11,ncol=40)
+a=matrix(1,nrow=1,ncol=n) 
+
+bl2=matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),matrix(ll,nrow=10,ncol=1),0),nrow=n+11,ncol=1)
+
+bu2=matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),matrix(uu,nrow=10,ncol=1),0),nrow=n+11,ncol=1)
+
+bl=matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),0),nrow=n+1,ncol=1)
+
+bu=matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),0),nrow=n+1,ncol=1)
+
+istate=as.matrix(mat.or.vec(n+1,1))
+
+x=matrix(0,nrow=n,ncol=1)
+
+#We determine some options to the optimizer
+optlist=list("Feasibility Phase Iteration Limit"=300,
+             "Optimality Phase Iteration Limit"=300,"Iteration Limit"=300)
+
+#We add a control function qphess in case of a singular covariance matrix
+qphess = function(n, jthcol, H, x, iwsav) {
+  ldh=nrow(H)
+  
+  if (iwsav[365] == 3 || iwsav[365] == 4) {
+    
+    hx = H %*% x
+    
+  } else if (iwsav[365] == 5 || iwsav[365] == 6) {
+    
+    hx = t(H) %*% H %*% x
+  } else {
+    
+    hx = as.matrix(mat.or.vec(n, 1))
+  }
+  list(HX = as.matrix(hx), IWSAV = as.matrix(iwsav))
+}
+
+#We run the optimizer for each lambda value, and plot the optimized weights
+for(lambda in list_lambda)
+{
+  Cov=10^(lambda)*H
+  
+  cvec=as.matrix(-t(X[1,]))
+  T<-e04nf(aa, bl, bu,cvec,Cov,qphess,istate,x,optlist)
+  T_2<-e04nf(aa, bl2, bu2,cvec,Cov,qphess,istate,x,optlist)
+  
+  i=i+1
+  
+  R[1,i]=X[1,]%*%T$X
+  R[2,i]=t(T$X) %*%H%*%T$X
+  R[3,i]=T$OBJ
+  R[4:(n+3),i]=T$X
+  R_2[1,i]=X[1,]%*%T_2$X
+  R_2[2,i]=t(T_2$X) %*%H%*%T_2$X
+  R_2[3,i]=T_2$OBJ
+  R_2[4:(n+3),i]=T_2$X
+  par(lend=2)
+}
+
+
+#################################################################
+### Nag Optimization: Problem 2
+
+returns=read.csv(file=PathCAC, header=TRUE ,sep=";")
+A=read.csv(file=SectorCAC, header=TRUE ,sep=";")
+
+X=as.matrix(returns)
+n=ncol(returns)
+M=20*10^6  
+bigbnd=1*10^6
+
+list_lambda=seq(-5,5,1)
+R=matrix(0,ncol=length(list_lambda),nrow=3+n)
+R_2=matrix(0,ncol=length(list_lambda),nrow=3+n)
+i=0
+ll=0
+uu=0
+
+
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+
+#det(H)
+
+a=matrix(1,nrow=1,ncol=n) 
+aa=as.matrix(rbind(as.matrix(t(A[-1])),matrix(1,nrow=1,ncol=n)),nrow=11,ncol=40)
+
+bl2=matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),matrix(ll,nrow=10,ncol=1),0),nrow=n+11,ncol=1)
+
+bu2=matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),matrix(uu,nrow=10,ncol=1),0),nrow=n+11,ncol=1)
+
+bl=matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),0),nrow=n+1,ncol=1)
+
+bu=matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),0),nrow=n+1,ncol=1)
+
+istate=as.matrix(mat.or.vec(n+1,1))
+
+x=matrix(0,nrow=n,ncol=1)
+
+#We determine some options to the optimizer
+optlist=list("Feasibility Phase Iteration Limit"=300,
+             "Optimality Phase Iteration Limit"=300,"Iteration Limit"=300)
+
+#We add a control function qphess in case of a singular covariance matrix
+qphess = function(n, jthcol, H, x, iwsav) {
+  ldh=nrow(H)
+  
+  if (iwsav[365] == 3 || iwsav[365] == 4) {
+    
+    hx = H %*% x
+    
+  } else if (iwsav[365] == 5 || iwsav[365] == 6) {
+    
+    hx = t(H) %*% H %*% x
+  } else {
+    
+    hx = as.matrix(mat.or.vec(n, 1))
+  }
+  list(HX = as.matrix(hx), IWSAV = as.matrix(iwsav))
+}
+
+#We run the optimizer for each lambda value, and plot the optimized weights
+for(lambda in list_lambda)
+{
+  Cov=10^(lambda)*H
+  
+  cvec=as.matrix(-X[1,])
+  T<-e04nf(a, bl, bu,cvec,Cov,qphess,istate,x,optlist)
+  T_2<-e04nf(aa, bl2, bu2,cvec,Cov,qphess,istate,x,optlist)
+  
+  i=i+1
+  
+  R[1,i]=X[1,]%*%T$X
+  R[2,i]=t(T$X) %*%H%*%T$X
+  R[3,i]=T$OBJ
+  R[4:(n+3),i]=T$X
+  R_2[1,i]=X[1,]%*%T_2$X
+  R_2[2,i]=t(T_2$X) %*%H%*%T_2$X
+  R_2[3,i]=T_2$OBJ
+  R_2[4:(n+3),i]=T_2$X
+  par(lend=2)
+  
+  fname<-paste("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/DAX",i,".png",sep="") 
+  xname=paste("Stock Weights",~lambda,"=",10^lambda) 
+  png(fname,    # create PNG for the heat map        
+      width = 5*300,        # 5 x 300 pixels
+      height = 5*300,
+      res = 300,            # 300 pixels per inch
+      pointsize = 9)        # smaller font size
+  plot(sort(R[4:(n+3),i],decreasing=TRUE),type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)
+  
+  dev.off() 
+}
+
+#We plot our optimized return and risk ~ risk aversion lambda
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/CAC15.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R_2[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend(0.0001,0.4, c("without sector constraint","with sector constraint"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-2),adj=0,padj=-1, outer=FALSE) 
+dev.off() 
+
+# x1=10^(list_lambda)
+# y1=R[1,]*100
+# y2=R_2[1,]*100
+# matplot(x1, cbind(y1,y2),type="l",col=c("red","green"),lty=c(1,1),log="x")
+
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/CAC16.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="o",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R_2[2,]*10^4,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend(0.00001,0.6, c("without sector constraint","with sector constraint"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
+dev.off() 
+
+
+#################################################################
+### Mosek Optimization: Problem 1
+
+
+f<-t(as.matrix(-returns[1,]))    #Return vector 
+R_3=matrix(0,ncol=length(list_lambda),nrow=n+1)   #Results Matrix
+# We re-write the matricial objective function as a scalar one, 
+#that we will plug in qobj below
+I=as.matrix(seq(1,n,1))        
+p=n
+for(i in 2:n){
+  K=as.matrix(seq(i,n,1))
+  p=p+length(K)
+  I=matrix(rbind(I,K),nrow=p,ncol=1)
+}
+J=as.matrix(rep(1,n))
+p=n
+for(i in 2:n){
+  K=as.matrix(rep(i,n-i+1))
+  p=p+length(K)
+  J=matrix(rbind(J,K),nrow=p,ncol=1)
+}
+V=as.matrix(H[1,1:n])
+p=n
+for(i in 2:n){
+  K=as.matrix(H[i,i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p,ncol=1)
+}
+
+Q=cov(returns)  #Covariance matrix
+
+qo1=list()
+qo1$sense="min"
+qo1$c=f      
+qo1$A=Matrix(a,byrow=TRUE,sparse=TRUE) 
+qo1$bc=rbind(blc=0,buc=0)
+qo1$bx=rbind(blx=rep(-bigbnd/M,n),bux=rep(bigbnd/M,n))
+j=0
+for (lambda in list_lambda)
+{
+  qo1$qobj=list(i=t(I),j=t(J),v=t(10^(lambda)*V))
+  r=mosek(qo1)
+  XX=r$sol$itr$xx[1:n]
+  #plot(X,type="h",xlab= "Stock weights",las=1)
+  j=j+1
+  plot(sort(XX,decreasing=TRUE),type="h",xlab= "Stock weights",las=1)
+  R_3[1,j]=-t(f)%*%XX
+  R_3[2,j]=t(XX)%*%Q%*%XX
+}
+
+#################################################################
+### Mosek Optimization: Problem 2
+
+list_lambda_2=seq(-5.1,4.9,0.25)
+f<-t(as.matrix(-returns[1,]))
+R_3=matrix(0,ncol=length(list_lambda),nrow=n+1)
+I=as.matrix(seq(1,n,1))
+p=n
+for(i in 2:n){
+  K=as.matrix(seq(i,n,1))
+  p=p+length(K)
+  I=matrix(rbind(I,K),nrow=p,ncol=1)
+}
+J=as.matrix(rep(1,n))
+p=n
+for(i in 2:n){
+  K=as.matrix(rep(i,n-i+1))
+  p=p+length(K)
+  J=matrix(rbind(J,K),nrow=p,ncol=1)
+}
+V=as.matrix(H[1,1:n])
+p=n
+for(i in 2:n){
+  K=as.matrix(H[i,i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p,ncol=1)
+}
+Q=cov(returns)
+
+qo1=list()
+qo1$sense="min"
+qo1$c=f
+qo1$A=Matrix(a,byrow=TRUE,sparse=TRUE) 
+qo1$bc=rbind(blc=0,buc=0)
+qo1$bx=rbind(blx=rep(-bigbnd/M,n),bux=rep(bigbnd/M,n))
+j=0
+for (lambda in list_lambda_2)
+{
+  qo1$qobj=list(i=t(I),j=t(J),v=t(10^(lambda)*V))
+  r=mosek(qo1)
+  XX=r$sol$itr$xx[1:n]
+  #plot(X,type="h",xlab= "Stock weights",las=1)
+  j=j+1
+  plot(sort(XX,decreasing=TRUE),type="h",xlab= "Stock weights",las=1)
+  R_3[1,j]=-t(f)%*%XX
+  R_3[2,j]=t(XX)%*%Q%*%XX
+}
+#We plot our optimized return and risk ~ risk aversion lambda
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/retDAXMosekNAG.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R_3[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R[1,]*100,log="x",xaxt='n',yaxt='n',xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="red")
+mtext(expression("x"~10^-2),adj=0,padj=-1, outer=FALSE)
+legend(0.0001,0.4, c("Mosek","NAG"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+
+dev.off() 
+
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/rskDAXMosekNAG.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R_3[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend(0.0001,0.04, c("Mosek","NAG"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
+dev.off() 
+
+#################################################################
+### NAG Optimization: Problem 3
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";")
+A1=read.csv(file=SectorDAX, header=TRUE ,sep=";")
+
+list_period=seq(2,4,1)
+L=0.001
+
+X=as.matrix(returns)
+n=ncol(returns)
+M=20*10^6
+bigbnd=1*10^6
+
+R1=cbind(rbind(matrix(1/n,ncol=1,nrow=3+5*n/2),
+               matrix(1/n,ncol=1,nrow=5*n/2)),
+         matrix(0,ncol=length(list_period)-1,nrow=3+5*n))
+
+ll=-1/5
+uu=1/5
+
+
+COR=cov(returns) #Our covariance matrix
+
+
+H=as.matrix(cbind(rbind(as.matrix(COR),matrix(0,nrow=4*n,ncol=n)),matrix(0,nrow=5*n,ncol=4*n)),nrow=5*n,ncol=5*n)
+
+
+#is.positive.definite(H)
+#det(H)
+M2=matrix(0,ncol=2*n,nrow=12+n)
+M_trad1=matrix(1,ncol=2*n,nrow=1)
+M1=matrix(0,ncol=3*n,nrow=1)
+M_trad=cbind(M1,M_trad1)
+M_decomp=cbind(diag(1,nrow=n,ncol=n),matrix(0,nrow=n,ncol=2*n),diag(-1,nrow=n,ncol=n),diag(1,nrow=n,ncol=n))
+
+aa1=as.matrix(rbind(cbind(rbind(as.matrix(t(A1[-1])),matrix(1,nrow=1,ncol=n),matrix(0,nrow=1,ncol=n)),rbind(matrix(0,nrow=10+1,ncol=2*n),matrix(1,nrow=1,ncol=2*n))),cbind(diag(-1,nrow=n,ncol=n),diag(1,nrow=n,ncol=n),diag(-1,nrow=n,ncol=n))),nrow=10+1+1+n,ncol=3*n)
+aa=cbind(aa1,M2)
+
+A=as.matrix(rbind(aa,M_trad,M_decomp),nrow=10+1+1+n+1+n,ncol=5*n)
+
+#10 is the number of constraints on sectors, 1 = delta neutrality and 1 = Book size constraint , n => bi+ - bi- =xi 
+# 1 trading constraint , n => yi+ - yi- =xi - xi old 
+i=2
+for (i in list_period)
+  
+{
+  
+  xold=as.matrix(R1[4:(n+3),i-1])
+  
+  bl2=as.matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),
+                      matrix(0,nrow=2*n,ncol=1),
+                      matrix(0,nrow=2*n,ncol=1),
+                      matrix(ll,nrow=10,ncol=1),0,0,
+                      matrix(0,nrow=n,ncol=1),0,
+                      xold),
+                nrow=5*n+10+1+1+n+1+n,ncol=1)
+  
+  
+  bu2=as.matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),
+                      matrix(10^6,nrow=2*n,ncol=1),
+                      matrix(10^6,nrow=2*n,ncol=1),
+                      matrix(uu,nrow=10,ncol=1),0,1,
+                      matrix(0,nrow=n,ncol=1),
+                      L*sum(abs(xold)),
+                      xold),
+                nrow=5*n+10+1+1+n+1+n,ncol=1)
+  
+  
+  istate=as.matrix(mat.or.vec(5*n+10+1+1+n+1+n,1))
+  #3*n nmbre of variables , 10 sector constraints, 1 Delta neutrality , 1 book size , n  weight decomposition.
+  x=matrix(0,nrow=5*n,ncol=1)
+  
+  #We determine some options to the optimizer
+  optlist=list("Feasibility Phase Iteration Limit"=500,
+               "Optimality Phase Iteration Limit"=500,"Iteration Limit"=500)
+  
+  #We add a control function qphess in case of a singular covariance matrix
+  qphess = function(n, jthcol, H, x, iwsav) {
+    ldh=nrow(H)
+    
+    if (iwsav[365] == 3 || iwsav[365] == 4) {
+      
+      hx = H %*% x
+      
+    } else if (iwsav[365] == 5 || iwsav[365] == 6) {
+      
+      hx = t(H) %*% H %*% x
+    } else {
+      
+      hx = as.matrix(mat.or.vec(n, 1))
+    }
+    list(HX = as.matrix(hx), IWSAV = as.matrix(iwsav))
+  }
+  
+  #We run the optimizer for each lambda value, and plot the optimized weights
+  
+  #Cov=10^(lambda)*H
+  Cov2=10^(1)*H
+  
+  #cvec=as.matrix(-t(X[1,]))
+  cvec2=rbind(as.matrix(-X[i-1,]),matrix(0,nrow=4*n,ncol=1))
+  
+  #T<-e04nf(a, bl, bu,cvec,Cov,qphess,istate,x,optlist)
+  T<-e04nf(A,bl2,bu2,cvec2,Cov2,qphess,istate,x,optlist)
+  
+  R1[1,i]=X[i-1,]%*%T$X[1:n]
+  R1[2,i]=t(T$X) %*%H%*%T$X
+  R1[3,i]=T$OBJ
+  R1[4:(5*n+3),i]=T$X
+}  
+
+#################################################################
+### NAG Optimization: Problem 4
+
+returns=read.csv(file=PathCAC, header=TRUE ,sep=";")
+A=read.csv(file=SectorCAC, header=TRUE ,sep=";")
+
+X=as.matrix(returns)
+n=ncol(returns)
+M=20*10^6  
+bigbnd=1*10^6
+
+list_lambda=seq(-5,5,1)
+R=matrix(0,ncol=length(list_lambda),nrow=3+n)
+
+R1=matrix(0,ncol=length(list_lambda),nrow=3+3*n)
+i=0
+ll=0
+uu=0
+
+
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+HH=as.matrix(cbind(rbind(as.matrix(COR),matrix(0,nrow=2*n,ncol=n)),
+                   matrix(0,nrow=3*n,ncol=2*n)),nrow=3*n,ncol=3*n)
+B=as.matrix(cor(returns))
+
+#is.positive.definite(H)
+#det(H)
+
+
+aa=as.matrix(rbind(cbind(rbind(as.matrix(t(A[-1])),matrix(1,nrow=1,ncol=n),
+                               matrix(0,nrow=1,ncol=n)),rbind(matrix(0,nrow=10+1,ncol=2*n),
+                                                              matrix(1,nrow=1,ncol=2*n))),cbind(diag(-1,nrow=n,ncol=n),
+                                                                                                diag(1,nrow=n,ncol=n),diag(-1,nrow=n,ncol=n))),
+             nrow=10+1+1+n,ncol=3*n)
+#10 is the number of constraints on sectors, 1 = delta neutrality and 1 = Book size constraint , n => bi+ - bi- =xi  
+a=matrix(1,nrow=1,ncol=n) 
+
+bl2=as.matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),matrix(0,nrow=2*n,ncol=1),
+                    matrix(ll,nrow=10,ncol=1),0,0,matrix(0,nrow=n,ncol=1)),
+              nrow=4*n+10+1+1,ncol=1)
+
+bu2=as.matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),
+                    matrix(10^6,nrow=2*n,ncol=1),matrix(uu,nrow=10,ncol=1),0,0.03*n,
+                    matrix(0,nrow=n,ncol=1)),nrow=4*n+10+1+1,ncol=1)
+
+bl=matrix(rbind(matrix(-bigbnd/M,nrow=n,ncol=1),0),nrow=n+1,ncol=1)
+
+bu=matrix(rbind(matrix(bigbnd/M,nrow=n,ncol=1),0),nrow=n+1,ncol=1)
+
+istate1=as.matrix(mat.or.vec(3*n+10+1+1+n,1))
+istate=as.matrix(mat.or.vec(n+1,1))
+
+
+x=matrix(0,nrow=n,ncol=1)
+x1=matrix(0,nrow=3*n,ncol=1)
+
+
+#We determine some options to the optimizer
+optlist=list("Feasibility Phase Iteration Limit"=500,
+             "Optimality Phase Iteration Limit"=500,"Iteration Limit"=500)
+
+#We add a control function qphess in case of a singular covariance matrix
+qphess = function(n, jthcol, H, x, iwsav) {
+  ldh=nrow(H)
+  
+  if (iwsav[365] == 3 || iwsav[365] == 4) {
+    
+    hx = H %*% x
+    
+  } else if (iwsav[365] == 5 || iwsav[365] == 6) {
+    
+    hx = t(H) %*% H %*% x
+  } else {
+    
+    hx = as.matrix(mat.or.vec(n, 1))
+  }
+  list(HX = as.matrix(hx), IWSAV = as.matrix(iwsav))
+}
+
+#We run the optimizer for each lambda value, and plot the optimized weights
+for(lambda in list_lambda)
+{
+  Cov=10^(lambda)*H
+  Cov2=10^(lambda)*HH
+  
+  
+  cvec=as.matrix(-X[1,])
+  cvec2=rbind(as.matrix(-X[1,]),matrix(0,nrow=2*n,ncol=1))
+  
+  
+  T<-e04nf(a, bl, bu,cvec,Cov,qphess,istate,x,optlist)
+  T1<-e04nf(aa, bl2, bu2,cvec2,Cov2,qphess,istate1,x1,optlist)
+  
+  
+  i=i+1
+  
+  R1[1,i]=X[1,]%*%T1$X[1:n]
+  R1[2,i]=t(T1$X) %*%HH%*%T1$X
+  R1[3,i]=T1$OBJ
+  R1[4:(n+3),i]=T1$X[1:n]
+  
+  R[1,i]=X[1,]%*%T$X
+  R[2,i]=t(T$X) %*%H%*%T$X
+  R[3,i]=T$OBJ
+  R[4:(n+3),i]=T$X
+  
+}
+par(lend=2)
+#We plot our optimized return and risk ~ risk aversion lambda
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/CAC20.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R1[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend(0.00001,0.4, c("without book value cstrnt","with book value and sector cstnt"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-2),adj=0,padj=-1, outer=FALSE) 
+dev.off() 
+
+
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/CAC21.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="o",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R1[2,]*10^4,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend(0.00001,0.06, c("without sector constraint","with sector constraint"), 
+       #puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
+dev.off() 
+
+
+
+#################################################################
+### Mosek Optimization: Problem 3
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+list_lambda=seq(-5,5,0.25)   ## list of log risk aversion parameter
+R_3=matrix(0,ncol=length(list_lambda),nrow=n+1)
+M=20*10^6
+bigbnd=10^6
+L=1
+c1=0.01
+c2=0.01
+l1=-0.05
+u1=0.05
+b=0.02
+xiold=rbind(as.matrix(rep(1/n,n/2)),as.matrix(rep(-1/n,n/2)))### To start with
+
+Q=as.matrix(cov(returns))
+f<−t(as.matrix(cbind(−returns[1,],matrix(0,nrow=1,ncol=6*n)))) ### The linear part of the problem
+
+bl_xi=as.matrix(rep(−bigbnd/M,n))
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_yi_p=as.matrix(rep(0,n))
+bl_yi_n=as.matrix(rep(0,n)) 
+bl_ti=as.matrix(rep(0,n))
+bl_zi=as.matrix(rep(-Inf,n))
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_yi_p,bl_yi_n,bl_ti,bl_zi)) ## variables lower bounds   
+
+bu_xi=as.matrix(rep(bigbnd/M,n))
+bu_bi_p=as.matrix(rep(Inf,n))
+bu_bi_n=as.matrix(rep(Inf,n))
+bu_yi_p=as.matrix(rep(Inf,n))
+bu_yi_n=as.matrix(rep(Inf,n))
+bu_ti=as.matrix(rep(Inf,n))
+bu_zi=as.matrix(rep(Inf,n))
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_yi_p,bu_yi_n,bu_ti,bu_zi)) ## variables upper bounds
+
+Delta_neut=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,6*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)) ### xi= (bi+) - (bi-)
+xi_yi_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n)) ### xi-xiold= (yi+) - (yi-)
+Booksize_constr=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),as.matrix(rep(0,2*n)))) ### sum(|xi|)=sum((bi+) - (bi-)) < M
+Trading_constr=cbind(diag(0,n),diag(0,n),diag(0,n),diag(1,n),diag(1,n),diag(0,n),diag(0,n)) ### |xi-xiold| < L|xiold|
+transac1=cbind(diag(c1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),-diag(1,n),diag(b,n))
+transac2=cbind(-diag(c2,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),-diag(1,n),diag(b,n))
+bin1=cbind(-diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(c1,n))
+bin2=cbind(diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),-diag(c2,n))
+a=rbind(Delta_neut,xi_bi_decomp,xi_yi_decomp,Booksize_constr,Trading_constr,transac1,transac2,bin1,bin2)###constraints matrix bl_c < a%*%x < bu_c
+
+bl_c=t(rbind(as.matrix(rep(0,n+1)),xiold,0,as.matrix(rep(0,n)),as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)))) ###constraints lower bounds
+bu_c=t(rbind(as.matrix(rep(0,n+1)),xiold,M/bigbnd,L*abs(xiold),as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))###constraints upper bounds
+
+R=matrix(0,ncol=length(list_lambda ) , nrow=n+1) #Results Matrix
+
+
+# We re−write the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n−i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns[,1:6]))
+V=as.matrix (H[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+qo1=list()
+qo1$sense= "min"                              ### We want to minmise qobj
+qo1$c=f                                       ### The linear part of the problem
+qo1$A=Matrix(a,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo1$bc=rbind(blc=bl_c,buc=bu_c)               ### Constraints bounds
+qo1$bx=rbind(blx=bl_x,bux=bu_x)               ### Variable bounds
+qo1$intsub=as.matrix(seq(6*n+1,7*n,1))
+j=0
+for (lambda in list_lambda)
+{
+  qo1$qobj=list(i=t(I) , j=t(J) ,v=t(10^(lambda)*V))
+  r=mosek(qo1)
+  j=j+1
+  XX=r$sol$int$xx[1:n]
+  R_3[1,j]=-t(f[1:n])%*%XX
+  R_3[2,j]=t(XX)%*%Q%*%XX
+  plot(sort(XX,decreasing=TRUE),type="h",xlab= "Stock weights",las=1)
+}
+plot(10^(list_lambda),R_3[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue")
+plot(10^(list_lambda),R_3[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue")
+#mosek_write(qo1, "C:/Users/omar/Documents/SamHam/3A/Seminar MS/Report/model_contopf.txt",opts=list())
+
+#################################################################
+### Mosek Optimization: Problem  Rcost cont
+
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+list_lambda=seq(1,5,1)   ## list of log risk aversion parameter
+
+R=matrix(0,ncol=length(list_lambda),nrow=n+1)
+M=20*10^6
+bigbnd=10^6
+L=1
+c1=0.01 
+c2=0.01
+l1=-0.05
+u1=0.05
+b=0.01
+
+
+Q=as.matrix(cov(returns))
+f2<−t(as.matrix(cbind(−returns[1,],matrix(0,nrow=1,ncol=3*n)))) ### The linear part of the problem
+
+bl_xi2=as.matrix(rep(−bigbnd/M,n))
+bl_bi_p2=as.matrix(rep(0,n))
+bl_bi_n2=as.matrix(rep(0,n)) 
+bl_ti2=as.matrix(rep(0,n))
+
+
+bl_x2=t(rbind(bl_xi2,bl_bi_p2,bl_bi_n2,bl_ti2)) ## variables lower bounds   
+
+bu_xi2=as.matrix(rep(bigbnd/M,n))
+bu_bi_p2=as.matrix(rep(Inf,n))
+bu_bi_n2=as.matrix(rep(Inf,n))
+bu_ti2=as.matrix(rep(Inf,n))
+
+
+bu_x2=t(rbind(bu_xi2,bu_bi_p2,bu_bi_n2,bu_ti2)) ## variables upper bounds
+
+Delta_neut2=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,3*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp2=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n)) ### xi= (bi+) - (bi-)
+Booksize_constr2=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,1*n)))) ### sum(|xi|)=sum((bi+) - (bi-)) < M
+transac12=cbind(diag(c1,n),diag(0,n),diag(0,n),-diag(1,n))
+transac22=cbind(-diag(c2,n),diag(0,n),diag(0,n),-diag(1,n))
+a2=rbind(Delta_neut2,xi_bi_decomp2,Booksize_constr2,transac12,transac22)###constraints matrix bl_c < a%*%x < bu_c
+
+bl_c2=t(rbind(as.matrix(rep(0,n+1)),0,as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)))) ###constraints lower bounds
+bu_c2=t(rbind(as.matrix(rep(0,n+1)),M/bigbnd,as.matrix(rep(0,n)),as.matrix(rep(0,n))))###constraints upper bounds
+
+R=matrix(0,ncol=length(list_lambda ) , nrow=n+1) #Results Matrix
+
+
+# We re−write the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n−i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+V=as.matrix (H[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+qo1=list()
+qo1$sense= "min"                              ### We want to minmise qobj
+qo1$c=f2                                       ### The linear part of the problem
+qo1$A=Matrix(a2,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo1$bc=rbind(blc=bl_c2,buc=bu_c2)               ### Constraints bounds
+qo1$bx=rbind(blx=bl_x2,bux=bu_x2)               ### Variable bounds
+j=0
+i=0
+for (lambda in list_lambda)
+{
+  #YYY=r$sol$itr$xx
+  #qo1$xx=YYY
+  #qo1$sol=list(itr=qo1)
+  qo1$qobj=list(i=t(I) , j=t(J) ,v=t(10^(lambda)*V))
+  r=mosek(qo1)
+  j=j+1
+  XXX=r$sol$itr$xx[1:n]
+  R[1,j]=-t(f2[1:n])%*%XXX
+  R[2,j]=t(XXX)%*%Q%*%XXX
+  #  fname<-paste("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/DAXTCC",j,".png",sep="") 
+  #xname=paste("Stock Weights",~lambda,"=",10^lambda) 
+  #png(fname,    # create PNG for the heat map        
+  #    width = 5*300,        # 5 x 300 pixels
+  #    height = 5*300,
+  #    res = 300,            # 300 pixels per inch
+  #    pointsize = 9)        # smaller font size
+  plot(sort(XXX,decreasing=TRUE),type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)
+  
+  #dev.off() 
+}
+
+plot(10^(list_lambda),R[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue")
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue")
+#mosek_write(qo1, "C:/Users/omar/Documents/SamHam/3A/Seminar MS/Report/model_contopf.txt",opts=list())
+
+#################################################################
+### Mosek Optimization: Problem  Rcost uncont
+
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+list_lambda=seq(1,5,1)   ## list of log risk aversion parameter
+
+R_3=matrix(0,ncol=length(list_lambda),nrow=n+1)
+M=20*10^6
+bigbnd=10^6
+L=1
+c1=0.01 
+c2=0.01
+l1=-0.05
+u1=0.05
+b=0.02
+
+
+Q=as.matrix(cov(returns))
+f<−t(as.matrix(cbind(−returns[1,],matrix(0,nrow=1,ncol=4*n)))) ### The linear part of the problem
+
+bl_xi=as.matrix(rep(−bigbnd/M,n))
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n)) 
+bl_ti=as.matrix(rep(0,n))
+bl_zi=as.matrix(rep(-Inf,n))
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti,bl_zi)) ## variables lower bounds   
+
+bu_xi=as.matrix(rep(bigbnd/M,n))
+bu_bi_p=as.matrix(rep(Inf,n))
+bu_bi_n=as.matrix(rep(Inf,n))
+bu_ti=as.matrix(rep(Inf,n))
+bu_zi=as.matrix(rep(Inf,n))
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti,bu_zi)) ## variables upper bounds
+
+Delta_neut=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n)) ### xi= (bi+) - (bi-)
+Booksize_constr=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)))) ### sum(|xi|)=sum((bi+) - (bi-)) < M
+transac1=cbind(diag(c1,n),diag(0,n),diag(0,n),-diag(1,n),diag(b,n))
+transac2=cbind(-diag(c2,n),diag(0,n),diag(0,n),-diag(1,n),diag(b,n))
+bin1=cbind(-diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(c1,n))
+bin2=cbind(diag(1,n),diag(0,n),diag(0,n),diag(0,n),-diag(c2,n))
+a=rbind(Delta_neut,xi_bi_decomp,Booksize_constr,transac1,transac2,bin1,bin2)###constraints matrix bl_c < a%*%x < bu_c
+
+bl_c=t(rbind(as.matrix(rep(0,n+1)),0,as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)))) ###constraints lower bounds
+bu_c=t(rbind(as.matrix(rep(0,n+1)),M/bigbnd,as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))###constraints upper bounds
+
+
+
+# We re−write the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n−i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+V=as.matrix (H[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+qo1=list()
+qo1$sense= "min"                              ### We want to minmise qobj
+qo1$c=f                                       ### The linear part of the problem
+qo1$A=Matrix(a,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo1$bc=rbind(blc=bl_c,buc=bu_c)               ### Constraints bounds
+qo1$bx=rbind(blx=bl_x,bux=bu_x)               ### Variable bounds
+qo1$intsub=as.matrix(seq(4*n+1,5*n,1))
+j=0
+for (lambda in list_lambda)
+{
+  qo1$qobj=list(i=t(I) , j=t(J) ,v=t(10^(lambda)*V))
+  r=mosek(qo1)
+  j=j+1
+  YY=r$sol$int$xx[1:n]
+  R_3[1,j]=-t(f[1:n])%*%YY
+  R_3[2,j]=t(YY)%*%Q%*%YY
+  
+  fname<-paste("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/DAXTCD",j,".png",sep="") 
+  xname=paste("Stock Weights",~lambda,"=",10^lambda) 
+  png(fname,    # create PNG for the heat map        
+      width = 5*300,        # 5 x 300 pixels
+      height = 5*300,
+      res = 300,            # 300 pixels per inch
+      pointsize = 9)        # smaller font size
+  plot(sort(YY,decreasing=TRUE),,type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)
+  
+  dev.off() 
+}
+
+}
+
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/CACTC1.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R_3[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R[1,]*100,log="x",xaxt='n',yaxt='n',xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="red")
+mtext(expression("x"~10^-2),adj=0,padj=-1, outer=FALSE)
+legend(0.0001,0.4, c("discontinuous cost","linear cost"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+dev.off() 
+
+
+png("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/CACTC2.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R_3[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend(0.0001,0.04, c("discontinuous cost","linear cost"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
+dev.off() 
+
+#################################################################
+### Mosek Optimization: Problem  R conic quad linear cost
+
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+list_lambda=seq(1,5,1)   ## list of log risk aversion parameter
+
+R=matrix(0,ncol=length(list_lambda),nrow=n+1)
+M=20*10^6
+bigbnd=10^6
+L=1
+c1=0.01 
+c2=0.01
+l1=-0.05
+u1=0.05
+b=0.01
+eps=10^(-15)
+Q=as.matrix(cov(returns))
+RR=chol(Q+diag(eps,n))
+
+bl_xi2=as.matrix(rep(−bigbnd/M,n))
+bl_bi_p2=as.matrix(rep(0,n))
+bl_bi_n2=as.matrix(rep(0,n)) 
+bl_ti2=as.matrix(rep(0,n))
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,as.matrix(rep(0,n-1))))
+
+bl_x2=t(as.matrix(rbind(bl_xi2,bl_bi_p2,bl_bi_n2,bl_ti2,bl_zi,bl_add))) ## variables lower bounds   
+
+bu_xi2=as.matrix(rep(bigbnd/M,n))
+bu_bi_p2=as.matrix(rep(Inf,n))
+bu_bi_n2=as.matrix(rep(Inf,n))
+bu_ti2=as.matrix(rep(Inf,n))
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,as.matrix(rep(Inf,n-1)))
+
+
+bu_x2=t(rbind(bu_xi2,bu_bi_p2,bu_bi_n2,bu_ti2,bu_zi,bu_add)) ## variables upper bounds
+
+Delta_neut2=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,5*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp2=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),diag(0,n)) ### xi= (bi+) - (bi-)
+Booksize_constr2=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,1*n)),as.matrix(rep(0,1*n)),as.matrix(rep(0,1*n)))) ### sum(|xi|)=sum((bi+) - (bi-)) < M
+transac12=cbind(diag(c1,n),diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n))
+transac22=cbind(-diag(c2,n),diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n))
+cone_cst=cbind(RR,diag(0,n),diag(0,n),diag(0,n),-diag(1,n),diag(0,n))
+a2=rbind(Delta_neut2,xi_bi_decomp2,Booksize_constr2,transac12,transac22,cone_cst)###constraints matrix bl_c < a%*%x < bu_c
+
+bl_c2=t(rbind(as.matrix(rep(0,n+1)),0,as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)),as.matrix(rep(0,n)))) ###constraints lower bounds
+bu_c2=t(rbind(as.matrix(rep(0,n+1)),M/bigbnd,as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))###constraints upper bounds
+
+R=matrix(0,ncol=length(list_lambda ) , nrow=n+1) #Results Matrix
+
+
+# We re−write the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+p=n
+
+
+E=rbind(5*n+1,5*n+2,as.matrix(seq(4*n+1,5*n,1)))
+cqo1=list()
+cqo1$sense= "min"                              ### We want to minmise qobj                                      ### The linear part of the problem
+cqo1$A=Matrix(a2,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo1$bc=rbind(blc=bl_c2,buc=bu_c2)               ### Constraints bounds
+cqo1$bx=rbind(blx=bl_x2,bux=bu_x2)               ### Variable bounds
+NUMCONES = 1
+cqo1$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo1$cones )= c("type","sub")
+cqo1$cones[ ,1] = list ("RQUAD", t(E))
+j=0
+i=0
+for (lambda in list_lambda)
+{
+  f2<−t(as.matrix(cbind(−returns[1,],matrix(0,nrow=1,ncol=4*n),matrix(0,nrow=1,ncol=1),
+                        matrix(10^(lambda),nrow=1,ncol=1),matrix(0,nrow=1,ncol=n-2)))) ### The linear part of the problem
+  cqo1$c=f2 
+  r=mosek(cqo1)
+  j=j+1
+  XXX=r$sol$itr$xx[1:n]
+  R[1,j]=-t(f2[1:n])%*%XXX
+  R[2,j]=t(XXX)%*%Q%*%XXX
+  #  fname<-paste("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/DAXTCC",j,".png",sep="") 
+  #xname=paste("Stock Weights",~lambda,"=",10^lambda) 
+  #png(fname,    # create PNG for the heat map        
+  #    width = 5*300,        # 5 x 300 pixels
+  #    height = 5*300,
+  #    res = 300,            # 300 pixels per inch
+  #    pointsize = 9)        # smaller font size
+  plot(sort(XXX,decreasing=TRUE),type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)  
+  #dev.off() 
+}
+
+plot(10^(list_lambda),R[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue")
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue")
+#mosek_write(qo1, "C:/Users/omar/Documents/SamHam/3A/Seminar MS/Report/model_contopf.txt",opts=list())
+
+#################################################################
+### Mosek Optimization: Problem  R conic quad quad cost
+
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+list_lambda=seq(1,5,1)   ## list of log risk aversion parameter
+
+R=matrix(0,ncol=length(list_lambda),nrow=n+1)
+M=20*10^6
+bigbnd=10^6
+L=1
+c1=0.01 
+c2=0.01
+l1=-0.05
+u1=0.05
+b=0.01
+eps=10^(-15)
+Q=as.matrix(cov(returns))
+RR=chol(Q+diag(eps,n))
+
+bl_xi2=as.matrix(rep(−bigbnd/M,n))
+bl_bi_p2=as.matrix(rep(0,n))
+bl_bi_n2=as.matrix(rep(0,n)) 
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,0,0.5,as.matrix(rep(0,n-3))))
+bl_zi2=as.matrix(rep(-Inf,n))
+bl_yi=as.matrix(rep(0,n))
+bl_ci=as.matrix(rep(1/c1,n))
+
+
+bl_x2=t(as.matrix(rbind(bl_xi2,bl_bi_p2,bl_bi_n2,bl_zi,bl_add,bl_zi2,bl_yi,bl_ci))) ## variables lower bounds   
+
+bu_xi2=as.matrix(rep(bigbnd/M,n))
+bu_bi_p2=as.matrix(rep(Inf,n))
+bu_bi_n2=as.matrix(rep(Inf,n))
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,Inf,0.5,as.matrix(rep(Inf,n-3)))
+bu_zi2=as.matrix(rep(Inf,n))
+bu_yi=as.matrix(rep(Inf,n))
+bu_ci=as.matrix(rep(1/c1,n))
+
+bu_x2=t(rbind(bu_xi2,bu_bi_p2,bu_bi_n2,bu_zi,bu_add,bu_zi2,bu_yi,bu_ci)) ## variables upper bounds
+
+Delta_neut2=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,7*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp2=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)) ### xi= (bi+) - (bi-)
+Booksize_constr2=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,5*n)))) ### sum(|xi|)=sum((bi+) - (bi-)) < M
+cone_cst=cbind(RR,diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+transac1=cbind(diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n))
+transac2=cbind(diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(1,n),diag(0,n),diag(0,n))
+a2=rbind(Delta_neut2,xi_bi_decomp2,Booksize_constr2,cone_cst,transac1,transac2)###constraints matrix bl_c < a%*%x < bu_c
+
+bl_c2=t(rbind(as.matrix(rep(0,n+1)),0,as.matrix(rep(0,n)),as.matrix(rep(-Inf,n)),
+              as.matrix(rep(0,n)))) ###constraints lower bounds
+bu_c2=t(rbind(as.matrix(rep(0,n+1)),M/bigbnd,as.matrix(rep(0,n)),as.matrix(rep(0,n)),
+              as.matrix(rep(Inf,n))))###constraints upper bounds
+
+R=matrix(0,ncol=length(list_lambda ) , nrow=n+1) #Results Matrix
+
+
+# We re−write the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+V=as.matrix (H[ 1 , 1 : n ] )
+V2=as.matrix (diag(1,n)[ 1 , 1 : n ] )
+p=n
+p2=n
+
+E=rbind(4*n+1,4*n+2,as.matrix(seq(3*n+1,4*n,1)))
+
+cqo1=list()
+cqo1$sense= "min"                              ### We want to minmise qobj
+### The linear part of the problem
+cqo1$A=Matrix(a2,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo1$bc=rbind(blc=bl_c2,buc=bu_c2)               ### Constraints bounds
+cqo1$bx=rbind(blx=bl_x2,bux=bu_x2)               ### Variable bounds
+NUMCONES = n+1
+cqo1$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo1$cones )= c("type","sub")
+cqo1$cones[ ,1] = list ("RQUAD", t(E))
+i=0
+for (i in 1:n ) {
+  E2=matrix(0,ncol=1,nrow=3)
+  E2=rbind(6*n+i,7*n+i,5*n+i)
+  cqo1$cones[ ,i+1] = list ("RQUAD", t(E2))
+}
+
+
+j=0
+i=0
+for (lambda in list_lambda)
+{
+  f2<−t(as.matrix(cbind(−returns[1,],matrix(0,nrow=1,ncol=3*n),matrix(0,nrow=1,ncol=1),
+                        matrix(10^(lambda),nrow=1,ncol=1),matrix(0,nrow=1,ncol=4*n-2)))) ### The linear part of the problem
+  cqo1$c=f2 
+  
+  r=mosek(cqo1)
+  j=j+1
+  XXX=r$sol$itr$xx[1:n]
+  R[1,j]=-t(f2[1:n])%*%XXX
+  R[2,j]=t(XXX)%*%Q%*%XXX
+  #  fname<-paste("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/DAXTCC",j,".png",sep="") 
+  #xname=paste("Stock Weights",~lambda,"=",10^lambda) 
+  #png(fname,    # create PNG for the heat map        
+  #    width = 5*300,        # 5 x 300 pixels
+  #    height = 5*300,
+  #    res = 300,            # 300 pixels per inch
+  #    pointsize = 9)        # smaller font size
+  plot(sort(XXX,decreasing=TRUE),type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)  
+  #dev.off() 
+}
+
+plot(10^(list_lambda),R[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue")
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue")
+#mosek_write(qo1, "C:/Users/omar/Documents/SamHam/3A/Seminar MS/Report/model_contopf.txt",opts=list())
+
+#################################################################
+### Mosek Optimization: Problem  R conic Market Impact
+
+
+returns=read.csv(file=PathDAX, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+list_lambda=seq(1,5,1)   ## list of log risk aversion parameter
+
+R=matrix(0,ncol=length(list_lambda),nrow=n+1)
+M=20*10^6
+bigbnd=10^6
+L=1
+c1=0.01 
+c2=0.01
+l1=-0.05
+u1=0.05
+b=0.01
+eps=10^(-15)
+Q=as.matrix(cov(returns))
+RR=chol(Q+diag(eps,n))
+
+bl_xi2=as.matrix(rep(−bigbnd/M,n))
+bl_bi_p2=as.matrix(rep(0,n))
+bl_bi_n2=as.matrix(rep(0,n)) 
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,0,0.5,as.matrix(rep(0,n-3))))
+bl_zi2=as.matrix(rep(-Inf,n))
+bl_yi=as.matrix(rep(0,n))
+bl_si=as.matrix(rep(0,n))
+bl_vi=as.matrix(rep(0,n))
+bl_wi=as.matrix(rep(0,n))
+bl_ri=as.matrix(rep(1/8,n))
+
+bl_x2=t(rbind(bl_xi2,bl_bi_p2,bl_bi_n2,bl_zi,bl_add,bl_zi2,bl_yi,bl_si,bl_vi,bl_wi,bl_ri)) ## variables lower bounds   
+
+bu_xi2=as.matrix(rep(bigbnd/M,n))
+bu_bi_p2=as.matrix(rep(Inf,n))
+bu_bi_n2=as.matrix(rep(Inf,n))
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,Inf,0.5,as.matrix(rep(Inf,n-3)))
+bu_zi2=as.matrix(rep(Inf,n))
+bu_yi=as.matrix(rep(Inf,n))
+bu_si=as.matrix(rep(Inf,n))
+bu_vi=as.matrix(rep(Inf,n))
+bu_wi=as.matrix(rep(Inf,n))
+bu_ri=as.matrix(rep(1/8,n))
+
+bu_x2=t(rbind(bu_xi2,bu_bi_p2,bu_bi_n2,bu_zi,bu_add,bu_zi2,bu_yi,bu_si,bu_vi,bu_wi,bu_ri)) ## variables upper bounds
+
+Delta_neut2=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,10*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp2=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)
+                    ,diag(0,n),diag(0,n),diag(0,n)) ### xi= (bi+) - (bi-)
+Booksize_constr2=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,8*n)))) ### sum(|xi|)=sum((bi+) - (bi-)) < M
+cone_cst=cbind(RR,diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),
+               diag(0,n),diag(0,n),diag(0,n))
+transac1=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n)
+               ,diag(0,n),diag(0,n),diag(0,n))
+transac2=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(1,n)
+               ,diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+transac3=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(1,n),diag(0,n),diag(0,n),
+               -diag(1,n),diag(0,n),diag(0,n))
+transac4=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(1,n),
+               diag(0,n),-diag(1,n),diag(0,n))
+a2=rbind(Delta_neut2,xi_bi_decomp2,Booksize_constr2,cone_cst,transac1,transac2,transac3,transac4)###constraints matrix bl_c < a%*%x < bu_c
+
+bl_c2=t(rbind(as.matrix(rep(0,n+1)),0,as.matrix(rep(0,n)),as.matrix(rep(-Inf,n)),
+              as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n)))) ###constraints lower bounds
+bu_c2=t(rbind(as.matrix(rep(0,n+1)),M/bigbnd,as.matrix(rep(0,n)),as.matrix(rep(0,n)),
+              as.matrix(rep(Inf,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))###constraints upper bounds
+
+R=matrix(0,ncol=length(list_lambda ) , nrow=n+1) #Results Matrix
+
+
+# We re−write the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+
+COR=cov(returns) #Our covariance matrix
+H=as.matrix(COR)
+B=as.matrix(cor(returns))
+V=as.matrix (H[ 1 , 1 : n ] )
+V2=as.matrix (diag(1,n)[ 1 , 1 : n ] )
+p=n
+p2=n
+
+E=rbind(4*n+1,4*n+2,as.matrix(seq(3*n+1,4*n,1)))
+
+cqo1=list()
+cqo1$sense= "min"                              ### We want to minmise qobj
+### The linear part of the problem
+cqo1$A=Matrix(a2,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo1$bc=rbind(blc=bl_c2,buc=bu_c2)               ### Constraints bounds
+cqo1$bx=rbind(blx=bl_x2,bux=bu_x2)               ### Variable bounds
+NUMCONES = 2*n+1
+cqo1$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo1$cones )= c("type","sub")
+cqo1$cones[ ,1] = list ("RQUAD", t(E))
+i=0
+for (i in 1:n ) {
+  E2=matrix(0,ncol=1,nrow=3)
+  E2=rbind(6*n+i,7*n+i,5*n+i)
+  cqo1$cones[ ,i+1] = list ("RQUAD", t(E2))
+  E3=matrix(0,ncol=1,nrow=3)
+  E3=rbind(10*n+i,8*n+i,9*n+i)
+  cqo1$cones[ ,i+n+1] = list ("RQUAD", t(E3))
+}
+
+j=0
+i=0
+for (lambda in list_lambda)
+{
+  f2<−t(as.matrix(cbind(−returns[1,],matrix(0,nrow=1,ncol=3*n),matrix(0,nrow=1,ncol=1),
+                        matrix(10^(lambda),nrow=1,ncol=1),matrix(0,nrow=1,ncol=7*n-2)))) ### The linear part of the problem
+  cqo1$c=f2 
+  
+  r=mosek(cqo1)
+  j=j+1
+  XXX=r$sol$itr$xx[1:n]
+  R[1,j]=-t(f2[1:n])%*%XXX
+  R[2,j]=t(XXX)%*%Q%*%XXX
+  #  fname<-paste("C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/DAXTCC",j,".png",sep="") 
+  #xname=paste("Stock Weights",~lambda,"=",10^lambda) 
+  #png(fname,    # create PNG for the heat map        
+  #    width = 5*300,        # 5 x 300 pixels
+  #    height = 5*300,
+  #    res = 300,            # 300 pixels per inch
+  #    pointsize = 9)        # smaller font size
+  plot(sort(XXX,decreasing=TRUE),type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)  
+  #dev.off() 
+}
+
+plot(10^(list_lambda),R[1,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue")
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue")
+#mosek_write(qo1, "C:/Users/omar/Documents/SamHam/3A/Seminar MS/Report/model_contopf.txt",opts=list())
+
+#################################################################
+### Mosek Optimization: Problem  Yassine
+
+returns=read.csv(file=PathC40D30F49, header=TRUE ,sep=";") ## matrix of returns 
+n=ncol(returns)
+n_EUR=70 ##nbre of EUR Stocks
+n_GBP=n-n_EUR ##nbre of GBP Stocks
+T_cost=matrix(0.0005,nrow=1,ncol=2*n)## transaction costs (2*n = n for long position and n for short positions)
+list_log_Theta=seq(-4,3,1)
+R=matrix(0,nrow=n,ncol=length(list_log_Theta))
+#list_lambda=seq(-2,4,1)   ## list of log risk aversion parameter
+
+M=20*10^6
+M_EUR=0.4*M ## EUR Book size limit  
+M_GBP=M-M_EUR ## GBP Book size limit
+norm=10^6 ## to normalize the problem 
+
+xiold=as.matrix(Y)### To start with
+
+
+Q=as.matrix(cov(returns[1:29,]))## covariance matrix.
+
+
+#f<-t(as.matrix(cbind(returns[20,],matrix(0,nrow=1,ncol=4*n)))) ### The linear part of the problem with quadratic transaction costs.
+f<-t(-as.matrix(cbind(returns[20,],-T_cost,matrix(0,nrow=1,ncol=2*n)))) ### The linear part of the problem with linear transaction costs.
+
+bl_xi=as.matrix(rep(-norm/M,n))
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_yi_p=as.matrix(rep(0,n))
+bl_yi_n=as.matrix(rep(0,n))
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_yi_p,bl_yi_n)) ## variables lower bounds   
+
+bu_xi=as.matrix(rep(norm/M,n))
+bu_bi_p=as.matrix(rep(norm/M,n))
+bu_bi_n=as.matrix(rep(norm/M,n))
+bu_yi_p=as.matrix(rep(norm/M,n))
+bu_yi_n=as.matrix(rep(norm/M,n))
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_yi_p,bu_yi_n)) ## variables upper bounds
+
+#Delta_neut=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)))) ### Delta neutrality constraints sum(xi)=0 
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n)) ### xi -(bi+) + (bi-) = 0
+xi_yi_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n)) ### xi -(yi+) + (yi-) = xiold
+EUR_Booksize_constr=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,n_EUR)),as.matrix(rep(0,n_GBP)),as.matrix(rep(1,n_EUR)),as.matrix(rep(0,n_GBP)),as.matrix(rep(0,2*n)))) ### sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+GBP_Booksize_constr=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(0,n_EUR)),as.matrix(rep(1,n_GBP)),as.matrix(rep(0,n_EUR)),as.matrix(rep(1,n_GBP)),as.matrix(rep(0,2*n)))) ### sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n))))### sum(|xi-xiold|) < Theta*M/norm
+EUR_Delta_neut=t(rbind(as.matrix(rep(1,n_EUR)),as.matrix(rep(0,n_GBP)),as.matrix(rep(0,4*n)))) #### sum(xi_EUR) = 0
+GBP_Delta_neut=t(rbind(as.matrix(rep(0,n_EUR)),as.matrix(rep(1,n_GBP)),as.matrix(rep(0,4*n)))) #### sum(xi_GBP) = 0
+
+a= rbind(xi_bi_decomp,xi_yi_decomp,EUR_Booksize_constr,GBP_Booksize_constr,Trading_constr,EUR_Delta_neut,GBP_Delta_neut)###constraints matrix bl_c < a%*%x < bu_c
+
+
+# We rewrite the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n-i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+
+V=as.matrix (Q[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+#I=as.matrix(rbind(I,matrix(seq(n+1,3*n,1)))) ## for quadratique transaction costs 
+#J=as.matrix(rbind(J,matrix(seq(n+1,3*n,1)))) ## for quadratique transaction costs
+#V=as.matrix(rbind(V,t(T_cost))) ## for quadratique transaction costs
+
+qo1=list()
+qo1$sense= "min"                              ### We want to maximize qobj=t(f)*X - lambda*t(X)*Q*X
+qo1$c=f                                      ### The linear part of the problem
+qo1$A=Matrix(a,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo1$bx=rbind(blx=bl_x,bux=bu_x)               ### Variable bounds
+
+
+i=0
+for (j in list_log_Theta)
+{
+  Theta=10^j
+  
+  bl_c=t(rbind(as.matrix(rep(0,n)),xiold,0,0,0,0,0)) ###constraints lower bounds
+  bu_c=t(rbind(as.matrix(rep(0,n)),xiold,M_EUR/norm,M_GBP/norm,Theta*M/norm,0,0))###constraints upper bounds
+  qo1$bc=rbind(blc=bl_c,buc=bu_c)                    ### Constraints bounds
+  
+  qo1$qobj=list(i=t(I) , j=t(J) ,v=t(10^2*V))
+  r=mosek(qo1)
+  XX=r$sol$itr$xx[1:n]
+  #plot(XX,type="h",xlab= "Stock weights",las=1)
+  i=i+1
+  #plot(XX,type="h",ylab= "Weight value",xlab= "Stock weights",las=1)
+  
+  R[1:n,i]=as.matrix(XX)
+  fname<-paste("C:/Users/Yassine/Desktop/3?me/Seminaire MS/Code R et donn?es/DAXCACFtLc",i,".png",sep="") 
+  name=paste("Stock Weights",~Theta,"=",10^j) 
+  png(fname,    # create PNG for the heat map        
+      width = 5*300,        # 5 x 300 pixels
+      height = 5*300,
+      res = 300,            # 300 pixels per inch
+      pointsize = 9)        # smaller font size
+  plot(sort(XX,decreasing=TRUE),type="h",xlab=expression(paste("Stock Weights"))
+       ,ylab="Weight Value",yaxp=c(-0.05,0.05,5),las=1)  
+  dev.off() 
+  
+}
+
+plot(sort(Y,decreasing=TRUE),type="h",ylab= "Weight value",xlab= "Stock weights",las=1)
+
+#We plot our optimized return and risk ~ risk aversion lambda
+png("C:/Users/Yassine/Desktop/3?me/Seminaire MS/Code R et donn?es/xlincostDAXcacfootMosek.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R[1:n,]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+mtext(expression("x"~10^-2),adj=0,padj=-1, outer=FALSE)
+legend("bottomleft", c("without trading constraints","with trading constraints"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+
+dev.off() 
+
+png("C:/Users/Yassine/Desktop/3?me/Seminaire MS/Code R et donn?es/rskDAXcacfootMosek.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="p",las=1,lwd=2,lty=3,col="blue");par(new=TRUE)
+plot(10^(list_lambda),R_3[2,]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",xaxt='n',yaxt='n',type="p",las=1,lwd=2,lty=3,col="red")
+legend("bottomleft", c("without trading constraints","with trading constraints"), 
+       # puts text in the legend 
+       lty=c(1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
+mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
+dev.off()
