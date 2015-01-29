@@ -32,7 +32,7 @@
 		\usepackage{caption}
 		\usepackage{subcaption}
 		\usepackage{tikz}
-		\usepackage{enumerate}
+		\usepackage{multirow}
 		
 		
 \definecolor{mygreen}{rgb}{0,0.6,0}
@@ -1292,45 +1292,49 @@ Hereafter we apply an optimization with transaction costs as in the section \ref
 \text{wrt  } i/ \ \ L \leq Ax \leq U \\
 \ \ \ \ \ ii/ Euro Booksize = \sum_{i=1}^{i=N}  \left|x_i \mathbb{I}_{s_i \in \mbox{\euro}} \right| \leq M_1  \\ 
 \ \ \ \ \ ii/ GBP Booksize= \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{s_i \in \pounds} \right| \leq M_2 \\
-\ \ \ \ \  iii/ \\ \sum_{i=1}^{i=N}  \left|x_i-x_i^{old}\right| \leq \theta  M , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\ \ \ \ \  iii/  \sum_{i=1}^{i=N}  \left|x_i-x_i^{old}\right| \leq \theta  M , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
 \end{cases} \]
 
-The graphs below compares the weights of the optimized portfolio in the case of linear and quadratic costs.
-\newline
-It is diffucult to conclude from these graphs , but we computed the sum of the turnover on each stock for both cases and found that the turnover on the cas with linear costs is higher than the one with quadratic costs.
+In order to compare quadratic and linear we can not use the same cost constant $c_i$, so we calibrated the cost constant of the quadratic model on the one with linear costs using a simple regression .\newline
 
+Graphs below illustrate the the different result of the optimisation of both models.
 
 \begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
     \centering
-    \includegraphics[width=0.5\linewidth]{img/CDF29.png} 
-    \caption{$xold$}
+    \includegraphics[width=0.75\linewidth]{img/CDF29.png} 
+    \caption{Trading cost} 
     \label{fig7:a} 
     \vspace{0.1ex}
- \caption{Weights of the old portfolio}
-  \label{fig1}
-\end{figure}
-
-
-\begin{figure}[H] 
+  \end{subfigure}%% 
   \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=0.75\linewidth]{img/CDF30.png} 
-    \caption{linear costs} 
-    \label{fig7:a} 
+    \caption{optimized return} 
+    \label{fig7:b} 
     \vspace{0.1ex}
   \end{subfigure} 
+\end{figure}
+
+\begin{figure}[H]
+  \ContinuedFloat 
   \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=0.75\linewidth]{img/CDF31.png} 
-    \caption{Quadratic costs} 
-    \label{fig7:b} 
+    \caption{optimized risk} 
+    \label{fig7:c} 
 \vspace{0.1ex}
   \end{subfigure}%%
-  
-  \caption{optimized weights for linear and quadratic costs}
-  \label{fig2}
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/CDF32.png} 
+    \caption{objective function} 
+    \label{fig7:d} 
+\vspace{0.1ex}
+  \end{subfigure} 
+\caption{Linear and quadratic trading costs}
+\label{fig7}
 \end{figure}
-
 
 
 %--------------------------------------------------------------------------------------------------------------------------
@@ -1435,10 +1439,7 @@ Performing the optimization problem with integer variables seems very cost savin
     \label{fig7:d} 
 \vspace{0.1ex}
   \end{subfigure} 
-\end{figure}
 
-\begin{figure}[H]
-  \ContinuedFloat 
   \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=0.75\linewidth]{img/DAXTCD3.png} 
@@ -1453,6 +1454,10 @@ Performing the optimization problem with integer variables seems very cost savin
     \label{fig7:f} 
 \vspace{0.1ex}
   \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+  \ContinuedFloat 
   \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=0.75\linewidth]{img/DAXTCD4.png} 
@@ -1577,17 +1582,17 @@ Hence as we did before we can operate a conic transformation using the market im
 
 		\chapter{Comparing different optimization strategies}
 %--------------------------------------------------------------------------------------------------------------------------
-The aim of this chapter is to introduce a unique problem framework and to compare the whole range of optimization techniques developed in the previous chapters, when applied to a large scale problem (number of stocks $\approx 1000$), in terms of optimization results when applied to a large scale problem, algorithms complexity and hence the convergence speed, we will also try to define strategies combining different optimization approaches in order to obtain best results in short time. 
+The aim of this chapter is to introduce a unique problem framework and to compare the whole range of optimization techniques developed in the previous chapters, when applied to a large scale problem (number of stocks $\approx 1000$), in terms of optimization performances, algorithms complexity (and hence the convergence rate), we will also try to define strategies combining different optimization approaches in order to obtain best results in short time. 
 
 %--------------------------------------------------------------------------------------------------------------------------
 %--------------------------------------------------------------------------------------------------------------------------
 \section{Optimization problem }
-In this section we recall a general framework for our optimization problem, for an expected return $a$, a covariance matrix $V$
+In this section we recall a general framework for our optimization problem, where the objective function $f$ depends on an expected return $a$, a covariance matrix $V$, a transaction cost function $T$, and the weights x. 
 
  \label{equation1}
  \begin{equation} 
 (P) \ \ \begin{cases}
-\text{maximize } f \\
+\text{maximize } f(x,a,V,T) \\
 \text{wrt  } i/ \ \ L \leq Ax \leq U \\
 \ \ \ \ \  ii/ \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M_p \\
 \ \ \ \ \  iii/ \ \ \left |\sum_{i=1}^{i=N} x_i\right|\leq \Delta_p\\
@@ -1597,28 +1602,25 @@ In this section we recall a general framework for our optimization problem, for 
 \ \ \ \ \  vii/ \ \  \left| \sum_{i=1}^{i=N}  x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq \Delta_p^{Curr_k} \\
 \ \ \ \ \  viii/ \ \ \left|x_i \right| \leq \Delta_i \\
 \ \ \ \ \  ix/ \ \ \left|t_i \right| \leq T_i \\
-\ \ \ \ \  x/ \ \ c^{+} t_i \leq y_i  \\
-\ \ \ \ \  xi/ \ \ -c^{-} t_i  \leq y_i   \\
 \end{cases}
 \end{equation}
 
- \item minimizing objective function with transaction cost 
-\begin{equation}
-(P2)\ \ \begin{cases}
- \text{maximize } a^{t}x-\lambda \|Fx\|^{2} - T(x) \\
-\text{wrt  } i/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  ii/ \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M_p \\
-\ \ \ \ \  iii/ \ \ \left |\sum_{i=1}^{i=N} x_i\right|\leq \Delta_p\\
-\ \ \ \ \  iv/ \ \ \sum_{i=1}^{i=N} \left|t_i\right| \leq  T_p  \mbox{   where  } t_i = x_i-x_i^{old}\\
-\ \ \ \ \  v/ \ \ \sum_{i=1}^{i=N} \left|x_i  \mathbb{I}_{x_i \in Sector_j}\right| \leq M_p^{s_j} \\
-\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq M_p^{curr_k} \\
-\ \ \ \ \  vii/ \ \ \left |\sum_{i=1}^{i=N} x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq \Delta_p^{Curr_k} \\
-\ \ \ \ \  viii/ \ \ \left |x_i \right|  \leq \Delta_i \\
-\ \ \ \ \  ix/ \ \ \left |t_i \right| \leq T_i \\
-\end{cases}
-\end{equation}
-\end{itemize}
+We will present in the table below the different problems we will perform and compare:
 
-
+\begin{table}[H]
+\centering
+\begin{tabular}{lc|c|c|c|}
+\cline{3-5}
+\multicolumn{1}{c}{} &  & Objective function: $f$ & \multicolumn{2}{c|}{Optimization algorithms/Methods} \\ \hline
+\multicolumn{1}{|c|}{P1} & \multirow{3}{*}{\begin{tabular}[c]{@{}c@{}}Linear \\ Programming\\ LP\end{tabular}} & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ linear\end{tabular} & Simplex & \begin{tabular}[c]{@{}c@{}}Interior \\ Point \\ Method\end{tabular} \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|c|}{P2} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - T(x)$\\ ($T$ linear)\end{tabular} & Simplex & ITM \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|l|}{P3} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ Quadratic\end{tabular} & \begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular} & ITM \\ \hline
+\multicolumn{1}{|l|}{P4} & \multirow{3}{*}{\begin{tabular}[c]{@{}c@{}}Quadratic\\ Programming\\ QP\end{tabular}} & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ linear\end{tabular} & CP & ITM \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|l|}{P5} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ Quadratic\end{tabular} & CP & ITM \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|l|}{P6} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx - T(x)$\\ ( $T$ second order polynom)\end{tabular} & CP & ITM \\ \hline
+\end{tabular}
+\caption{List of problems treated}
+  \label{tab1} 
+\end{table}
 
 \end{document} 
