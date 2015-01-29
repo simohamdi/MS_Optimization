@@ -4,9 +4,6 @@
 ######################### R Code ################################
 #################################################################
 #################################################################
-
-
-
 #################################################################
 ### Nag Optimization: Problem 1
 
@@ -1524,3 +1521,207 @@ legend("bottomleft", c("without trading constraints","with trading constraints")
        lwd=c(2.5,2.5),col=c("blue","red")) # gives the legend lines the correct color and width
 mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
 dev.off()
+
+
+#################################################################
+#################################################################
+################### full problem optimisation ###################
+######################### R Code ################################
+#################################################################
+#################################################################
+
+
+
+install.packages("Rmosek",type="source",INSTALL_opts="--no-multiarch",repos="http://download.mosek.com/R/7")
+require(Rmosek)
+
+                                    #### Data processing ###
+
+MSData=read.csv(file="C:/Users/Yassine/Desktop/3ème/Seminaire MS/Code R et données/MSData.csv", 
+                header=TRUE ,sep=";")
+stockname = unique(MSData$secID)
+Price_list = list()
+Price_list2 = list()
+toUSD_list=list()
+sector_list=list()
+expreturn_series=NULL
+return_series=NULL
+toUSD=NULL
+sector_matrix=matrix(0,nrow=12,ncol=801)
+currency_matrix=matrix(0,nrow=2,ncol=801)
+
+for (i in stockname)
+{ 
+  index_stock = (MSData$secID == i)
+  Price_list[[i]] =   MSData$return[index_stock]
+  Price_list2[[i]] =   MSData$return4[index_stock]
+  toUSD_list[[i]]= MSData$toUSD[index_stock]
+  if( length(Price_list[[i]]) == 19)
+  {
+    if(i<=801 && MSData$currency[i]=="EUR"){
+      currency_matrix[1,i]=1}
+    if(i<=801 && MSData$currency[i]=="GBP"){
+      currency_matrix[2,i]=1}
+    for(j in 1:11){
+      if(i<=801 && MSData$sector[i]==5*j){
+        sector_matrix[j,i]=1}
+    }
+    expreturn_series=cbind(expreturn_series,as.matrix(Price_list[[i]]))
+    return_series=cbind(return_series,as.matrix(Price_list2[[i]]))
+    toUSD=cbind(toUSD,as.matrix(toUSD_list[[i]]))
+  }
+}
+
+currency_matrix=(currency_matrix[,-1])[,-1]
+sector_matrix=(sector_matrix[,-1])[,-1]
+RS=(return_series[,-1])[,-1]
+
+B=cov(RS)
+C=cor(RS)
+
+
+
+                              ########### Algo input #######
+
+returns=RS                                                    ## matrix of returns 
+Sector=sector_matrix                                          ## Sector Matrix
+n=ncol(returns)                                               ## Stock number
+n_EUR=sum(currency_matrix[1,])                                ## nbre of EUR Stocks
+n_GBP=sum(currency_matrix[2,])                                ## nbre of GBP Stocks
+T_cost.l=matrix(0.0005,nrow=1,ncol=2*n)                       ## linear part of transaction costs
+T_cost.q=matrix(0,nrow=1,ncol=2*n)                            ## Quadratic part of transaction costs
+xiold=as.matrix(rep(0,n),nrow=n,ncol=1)                       ## current position
+lambda=10^2                                                   ## Risk aversion factor
+M.p=20*10^6                                                   ## Book size limit
+M.sector=as.matrix(rep(M.p/12,nrow(sector_matrix))            ## Size limit by Sector
+                   ,nrow(sector_matrix),ncol=1)               
+M.cur=as.matrix(rep(M.p/2,2),nrow=2,ncol=1)                   ## Size limit by Currency  
+norm=10^6                                                     ## to normalize the problem
+Delta=M.p/10                                                  ## Portfolio Delta limit        
+Delta_i=as.matrix(rep(norm,n),nrow=n,ncol=1)                  ## Stock i Delta limit
+Delta_cur=as.matrix(rep(M.p/20,2),nrow=2,ncol=1)              ## currency Delta limit           
+t.p=0.4*M.p                                                   ## Book Turnover bound
+t.i=as.matrix(rep(M.p/100,n),nrow=n,ncol=1)                   ## Stock i turnover bound
+#Q=cov(RS)                                                     ## covariance matrix.
+Q=matrix(rep(0,n*n),n,n)
+
+                                  ######## Algo #####
+
+
+
+# We rewrite the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n-i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+
+V=as.matrix (Q[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+# The Quadratic part of the problem 
+I=as.matrix(rbind(I,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs 
+J=as.matrix(rbind(J,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs
+V=as.matrix(rbind(V,t(T_cost.q)))                  ## for quadratic transaction costs
+
+### The linear part of the problem.
+f<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=2*n),-T_cost.l)))
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)))) 
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)))) 
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)))) 
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n))
+
+# Constraint matrix
+a= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,Trading_constr,Delta_EUR,Delta_GBP,Sector_Size)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,-Delta_cur/norm,as.matrix(rep(0,nrow(Sector)))))
+#upper bounds
+bu_c=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,M.sector/norm))
+
+
+qo1=list()
+qo1$sense= "min"                              ### We want to maximize qobj=t(f)*X - lambda*t(X)*Q*X
+qo1$c=f                                       ### The linear part of the problem
+qo1$bc=rbind(blc=bl_c,buc=bu_c)               ### Constraints bounds
+qo1$A=Matrix(a,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo1$bx=rbind(blx=bl_x,bux=bu_x)               ### Variable bounds
+qo1$qobj=list(i=t(I) , j=t(J) ,v=t(lambda*V))
+
+r=mosek(qo1)
+XX=r$sol$itr$xx[1:n] # interior point solution
+YY=r$sol$bas$xx[1:n] # simplex soution
+TT=r$sol$itr$xx[(3*n+1):(5*n)] # Turnover 
+
+
+plot(sort(XX,decreasing=TRUE),type="h",ylab= "Weight value",xlab= "Stock weights",las=1)
