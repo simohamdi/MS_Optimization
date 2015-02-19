@@ -1,0 +1,954 @@
+#################################################################
+#################################################################
+################### full problem optimisation ###################
+######################### R Code ################################
+#################################################################
+#################################################################
+
+
+#######P21
+#######P22
+
+                                    #### Data processing ###
+
+MSData=read.csv(file="C:/Users/omar/Documents/SamHam/3A/Seminar MS/Seminar MS/MSData.csv", 
+                header=TRUE ,sep=";")
+stockname = unique(MSData$secID)
+Price_list = list()
+Price_list2 = list()
+toUSD_list=list()
+sector_list=list()
+expreturn_series=NULL
+return_series=NULL
+toUSD=NULL
+sector_matrix=matrix(0,nrow=12,ncol=801)
+currency_matrix=matrix(0,nrow=2,ncol=801)
+
+for (i in stockname)
+{ 
+  index_stock = (MSData$secID == i)
+  Price_list[[i]] =   MSData$return[index_stock]
+  Price_list2[[i]] =   MSData$return4[index_stock]
+  toUSD_list[[i]]= MSData$toUSD[index_stock]
+  if( length(Price_list[[i]]) == 19)
+  {
+    if(i<=801 && MSData$currency[i]=="EUR"){
+      currency_matrix[1,i]=1}
+    if(i<=801 && MSData$currency[i]=="GBP"){
+      currency_matrix[2,i]=1}
+    for(j in 1:11){
+      if(i<=801 && MSData$sector[i]==5*j){
+        sector_matrix[j,i]=1}
+    }
+    expreturn_series=cbind(expreturn_series,as.matrix(Price_list[[i]]))
+    return_series=cbind(return_series,as.matrix(Price_list2[[i]]))
+    toUSD=cbind(toUSD,as.matrix(toUSD_list[[i]]))
+  }
+}
+
+currency_matrix=(currency_matrix[,-1])[,-1]
+sector_matrix=(sector_matrix[,-1])[,-1]
+RS=(return_series[,-1])[,-1]
+
+B=cov(RS)
+C=cor(RS)
+
+
+
+                              ########### Algo input #######
+
+returns=RS                                                    ## matrix of returns 
+Sector=sector_matrix                                          ## Sector Matrix
+n=ncol(returns)                                               ## Stock number
+n_EUR=sum(currency_matrix[1,])                                ## nbre of EUR Stocks
+n_GBP=sum(currency_matrix[2,])                                ## nbre of GBP Stocks
+T_cost.l=matrix(0.0005,nrow=1,ncol=2*n)                       ## linear part of transaction costs
+T_cost.q=matrix(0,nrow=1,ncol=2*n)                            ## Quadratic part of transaction costs
+xiold=as.matrix(rep(0,n),nrow=n,ncol=1)                       ## current position
+lambda=10^2                                                   ## Risk aversion factor
+M.p=20*10^6                                                   ## Book size limit
+M.sector=as.matrix(rep(M.p/12,nrow(sector_matrix))            ## Size limit by Sector
+                   ,nrow(sector_matrix),ncol=1)               
+M.cur=as.matrix(rep(M.p/2,2),nrow=2,ncol=1)                   ## Size limit by Currency  
+norm=10^6                                                     ## to normalize the problem
+Delta=M.p/100                                                 ## Portfolio Delta limit        
+Delta_i=as.matrix(rep(norm,n),nrow=n,ncol=1)                  ## Stock i Delta limit
+Delta_cur=as.matrix(rep(M.p/20,2),nrow=2,ncol=1)              ## currency Delta limit           
+t.p=0.4*M.p                                                   ## Book Turnover bound
+t.i=as.matrix(rep(M.p/100,n),nrow=n,ncol=1)                   ## Stock i turnover bound
+Q=cov(RS)                                                     ## covariance matrix.
+
+
+                                  ######## Algo #####
+
+
+
+# We rewrite the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n-i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+
+V=as.matrix (Q[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+# The Quadratic part of the problem 
+I=as.matrix(rbind(I,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs 
+J=as.matrix(rbind(J,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs
+V=as.matrix(rbind(V,t(T_cost.q)))                  ## for quadratic transaction costs
+
+### The linear part of the problem.
+f<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=2*n),-T_cost.l)))
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)))) 
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)))) 
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)))) 
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n))
+
+# Constraint matrix
+a= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,Trading_constr,Delta_EUR,Delta_GBP,Sector_Size)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,-Delta_cur/norm,as.matrix(rep(0,nrow(Sector)))))
+#upper bounds
+bu_c=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,M.sector/norm))
+
+                          #### Quadratic problem ####
+
+qo22=list()
+qo22$sense= "min"                              ### We want to maximize qobj=t(f)*X - lambda*t(X)*Q*X
+qo22$c=f                                       ### The linear part of the problem
+qo22$bc=rbind(blc=bl_c,buc=bu_c)               ### Constraints bounds
+qo22$A=Matrix(a,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo22$bx=rbind(blx=bl_x,bux=bu_x)               ### Variable bounds
+qo22$qobj=list(i=t(I) , j=t(J) ,v=t(lambda*V)) ### 
+
+rq=mosek(qo22)
+
+XX=rq$sol$itr$xx[1:n] # interior point solution
+TT=rq$sol$itr$xx[(3*n+1):(5*n)] # Turnover 
+
+
+                        #### Linear problem using simplex  ####
+                        #### Mosek selects dual or primal   ####
+
+lo21 <- list ()
+lo21$sense <- "max"
+lo21$c <- -f
+lo21$A <- Matrix(a,byrow=TRUE,sparse=TRUE)
+
+lo21$bc <- rbind (blc=bl_c,buc=bu_c);
+lo21$bx <- rbind (blx=bl_x,bux=bu_x);
+lo21$iparam <- list ( OPTIMIZER ="OPTIMIZER_FREE_SIMPLEX");
+rlsf <- mosek(lo21)
+mic21=microbenchmark(mosek(lo21),times=1L)
+boxplot(mic21)
+
+                        #### Primal Linear problem using simplex  ####
+                        
+lo1$iparam <- list ( OPTIMIZER ="OPTIMIZER_PRIMAL_SIMPLEX");
+rlsp <- mosek(lo1)
+
+
+                        #### Dual Linear problem using simplex  ####
+
+lo1$iparam <- list ( OPTIMIZER ="OPTIMIZER_DUAL_SIMPLEX");
+rlsd <- mosek(lo1)
+
+                        #### Linear problem using interior point method ###
+lo12 <- list ()
+lo12$sense <- "max"
+lo12$c <- -f
+lo12$A <- Matrix(a,byrow=TRUE,sparse=TRUE)
+
+lo12$bc <- rbind (blc=bl_c,buc=bu_c);
+lo12$bx <- rbind (blx=bl_x,bux=bu_x);                              
+lo12$iparam <- list ( OPTIMIZER ="OPTIMIZER_INTPNT");
+rlif <- mosek(lo12)
+
+
+##########################################################
+##########################################################
+
+#######P42
+#######P11
+#######P12
+
+######## Algo #####
+
+
+
+# We rewrite the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n-i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+
+V=as.matrix (Q[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+# The Quadratic part of the problem 
+I=as.matrix(rbind(I,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs 
+J=as.matrix(rbind(J,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs
+V=as.matrix(rbind(V,t(T_cost.q)))                  ## for quadratic transaction costs
+
+### The linear part of the problem.
+f<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=4*n),0)))
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n))) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0)) 
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0)) 
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0)) 
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0)) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0)) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   Sector,Sector,matrix (rep(0, nrow(Sector)*2*n), 
+                                         nrow(Sector), 2*n),0)
+# Cost constraints 
+cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1))
+
+# Constraint matrix
+a= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,Trading_constr,Delta_EUR,Delta_GBP,Sector_Size,cost_costr)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,-Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),-Inf))
+#upper bounds
+bu_c=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,M.sector/norm,0))
+
+
+#### Quadratic problem ####
+
+qo42=list()
+qo42$sense= "min"                              ### We want to maximize qobj=t(f)*X - lambda*t(X)*Q*X
+qo42$c=f                                       ### The linear part of the problem
+qo42$bc=rbind(blc=bl_c,buc=bu_c)               ### Constraints bounds
+qo42$A=Matrix(a,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+qo42$bx=rbind(blx=bl_x,bux=bu_x)               ### Variable bounds
+qo42$qobj=list(i=t(I) , j=t(J) ,v=t(lambda*V)) ### 
+
+rq2=mosek(qo42)
+
+XX=rq2$sol$itr$xx[1:n] # interior point solution
+TT=rq2$sol$itr$xx[(3*n+1):(5*n)] # Turnover 
+
+
+#### Linear problem using simplex  ####
+#### Mosek selects dual or primal   ####
+
+lo11 <- list ()
+lo11$sense <- "max"
+lo11$c <- -f
+lo11$A <- Matrix(a,byrow=TRUE,sparse=TRUE)
+
+lo11$bc <- rbind (blc=bl_c,buc=bu_c);
+lo11$bx <- rbind (blx=bl_x,bux=bu_x);
+lo11$iparam <- list ( OPTIMIZER ="OPTIMIZER_FREE_SIMPLEX");
+rlsf2 <- mosek(lo11)
+
+
+
+lo12<- list ()
+lo12$sense <- "max"
+lo12$c <- -f
+lo12$A <- Matrix(a,byrow=TRUE,sparse=TRUE)
+lo12$bc <- rbind (blc=bl_c,buc=bu_c);
+lo12$bx <- rbind (blx=bl_x,bux=bu_x);
+
+##########################################################
+##########################################################
+
+#######P5
+
+
+########### Algo input #######
+
+returns=RS                                                    ## matrix of returns 
+Sector=sector_matrix                                          ## Sector Matrix
+n=ncol(returns)                                               ## Stock number
+n_EUR=sum(currency_matrix[1,])                                ## nbre of EUR Stocks
+n_GBP=sum(currency_matrix[2,])                                ## nbre of GBP Stocks
+T_cost.l=matrix(0.0005,nrow=1,ncol=2*n)                       ## linear part of transaction costs
+T_cost.q=matrix(0,nrow=1,ncol=2*n)                            ## Quadratic part of transaction costs
+xiold=as.matrix(rep(0,n),nrow=n,ncol=1)                       ## current position
+lambda=10^2                                                   ## Risk aversion factor
+M.p=20*10^6                                                   ## Book size limit
+M.sector=as.matrix(rep(M.p/12,nrow(sector_matrix))            ## Size limit by Sector
+                   ,nrow(sector_matrix),ncol=1)               
+M.cur=as.matrix(rep(M.p/2,2),nrow=2,ncol=1)                   ## Size limit by Currency  
+norm=10^6                                                     ## to normalize the problem
+Delta=M.p/100                                                 ## Portfolio Delta limit        
+Delta_i=as.matrix(rep(norm,n),nrow=n,ncol=1)                  ## Stock i Delta limit
+Delta_cur=as.matrix(rep(M.p/20,2),nrow=2,ncol=1)              ## currency Delta limit           
+t.p=0.4*M.p                                                   ## Book Turnover bound
+t.i=as.matrix(rep(M.p/100,n),nrow=n,ncol=1)                   ## Stock i turnover bound
+c1=0.01 
+Q=cov(RS)                                                     ## covariance matrix.
+eps=10^(-15)
+RR=chol(Q+diag(eps,n))
+### The linear part of the problem.
+f5<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=4*n),0,matrix(0,nrow=1,ncol=n),
+                      matrix(0,nrow=1,ncol=1),
+                      matrix(-1,nrow=1,ncol=1),matrix(0,nrow=1,ncol=4*n-2))))
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,0,0.5,as.matrix(rep(0,n-3))))
+bl_zi2=as.matrix(rep(-Inf,n))
+bl_yi2=as.matrix(rep(0,n))
+bl_ci=as.matrix(rep(1/c1,n))
+
+bl_x5=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi,bl_zi,bl_add,bl_zi2,bl_yi2,bl_ci)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,Inf,0.5,as.matrix(rep(Inf,n-3)))
+bu_zi2=as.matrix(rep(Inf,n))
+bu_yi2=as.matrix(rep(Inf,n))
+bu_ci=as.matrix(rep(1/c1,n))
+
+bu_x5=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi,bu_zi,bu_add,bu_zi2,bu_yi2,bu_ci)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0,
+                  as.matrix(rep(0,n)),as.matrix(rep(0,4*n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,4*n))))
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0,
+                     as.matrix(rep(0,n)),as.matrix(rep(0,4*n))) )
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,4*n))))
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0,as.matrix(rep(0,n)),
+                       as.matrix(rep(0,4*n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,4*n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,4*n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,
+                   matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n),
+                   0,matrix (rep(0, nrow(Sector)*n), nrow(Sector), n), matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n))
+
+# Cost constraints 
+cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1,as.matrix(rep(0,n)), as.matrix(rep(0,4*n))))
+
+#Conic constraints
+cone_cst=cbind(RR,diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),-diag(1,n),diag(0,n)
+               ,diag(0,n),diag(0,n),diag(0,n))
+
+# Constraint matrix
+a5= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,
+         Trading_constr,Delta_EUR,Delta_GBP,Sector_Size,cost_costr,cone_cst)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c5=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,
+             -Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),-Inf,as.matrix(rep(-Inf,n))))
+#upper bounds
+bu_c5=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,
+             M.sector/norm,0,as.matrix(rep(0,n))))
+
+E15=rbind(6*n+5,6*n+6,as.matrix(seq(5*n+2,5*n+3,1)))
+
+R=matrix(0,ncol=2 , nrow=n+1)
+cqo5=list()
+cqo5$sense= "min"                              ### We want to minmise qobj
+
+cqo5$A=Matrix(a5,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo5$bc=rbind(blc=bl_c5,buc=bu_c5)               ### Constraints bounds
+cqo5$bx=rbind(blx=bl_x5,bux=bu_x5)               ### Variable bounds
+NUMCONES = n+1
+cqo5$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo5$cones )= c("type","sub")
+cqo5$cones[ ,1] = list ("RQUAD", t(E15))
+i=0
+for (i in 1:n ) {
+  E25=matrix(0,ncol=1,nrow=3)
+  E25=rbind(8*n+i,9*n+i,7*n+i)
+  cqo5$cones[ ,i+1] = list ("RQUAD", t(E25))
+}
+
+cqo5$c=f5
+r=mosek(cqo5)
+
+##########################################################
+##########################################################
+
+#######P3
+
+
+########### Algo input #######
+### The linear part of the problem.
+f3<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=4*n),0,matrix(0,nrow=1,ncol=n),
+                      matrix(0,nrow=1,ncol=1),
+                      matrix(0,nrow=1,ncol=1),matrix(0,nrow=1,ncol=4*n-2))))
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,0,0.5,as.matrix(rep(0,n-3))))
+bl_zi2=as.matrix(rep(-Inf,n))
+bl_yi2=as.matrix(rep(0,n))
+bl_ci=as.matrix(rep(1/c1,n))
+
+bl_x3=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi,bl_zi,bl_add,bl_zi2,bl_yi2,bl_ci)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,Inf,0.5,as.matrix(rep(Inf,n-3)))
+bu_zi2=as.matrix(rep(Inf,n))
+bu_yi2=as.matrix(rep(Inf,n))
+bu_ci=as.matrix(rep(1/c1,n))
+
+bu_x3=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi,bu_zi,bu_add,bu_zi2,bu_yi2,bu_ci)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0,
+                  as.matrix(rep(0,n)),as.matrix(rep(0,4*n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,4*n))))
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0,
+                     as.matrix(rep(0,n)),as.matrix(rep(0,4*n))) )
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,4*n))))
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0,as.matrix(rep(0,n)),
+                       as.matrix(rep(0,4*n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,4*n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,4*n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,
+                   matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n),
+                   0,matrix (rep(0, nrow(Sector)*n), nrow(Sector), n), matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n))
+
+# Cost constraints 
+cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1,as.matrix(rep(0,n)), as.matrix(rep(0,4*n))))
+
+#Conic constraints
+cone_cst=cbind(RR,diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),-diag(1,n),diag(0,n)
+               ,diag(0,n),diag(0,n),diag(0,n))
+
+# Constraint matrix
+a3= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,
+         Trading_constr,Delta_EUR,Delta_GBP,Sector_Size,cost_costr,cone_cst)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c3=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,
+             -Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),-Inf,as.matrix(rep(-Inf,n))))
+#upper bounds
+bu_c3=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,
+             M.sector/norm,0,as.matrix(rep(0,n))))
+
+E13=rbind(6*n+5,6*n+6,as.matrix(seq(5*n+2,5*n+3,1)))
+
+R=matrix(0,ncol=2 , nrow=n+1)
+cqo3=list()
+cqo3$sense= "min"                              ### We want to minmise qobj
+
+cqo3$A=Matrix(a3,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo3$bc=rbind(blc=bl_c3,buc=bu_c3)               ### Constraints bounds
+cqo3$bx=rbind(blx=bl_x3,bux=bu_x3)               ### Variable bounds
+NUMCONES = n+1
+cqo3$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo1$cones )= c("type","sub")
+cqo3$cones[ ,1] = list ("RQUAD", t(E13))
+i=0
+for (i in 1:n ) {
+  E23=matrix(0,ncol=1,nrow=3)
+  E23=rbind(8*n+i,9*n+i,7*n+i)
+  cqo3$cones[ ,i+1] = list ("RQUAD", t(E23))
+}
+
+cqo3$c=f3
+r=mosek(cqo3)
+
+
+
+
+##########################################################
+##########################################################
+
+#######P41
+
+### The linear part of the problem.
+f41<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=4*n),0,matrix(0,nrow=1,ncol=n),
+                      matrix(0,nrow=1,ncol=1),
+                      matrix(-1,nrow=1,ncol=1),matrix(0,nrow=1,ncol=n-2))))
+                   
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,as.matrix(rep(0,n-1))))
+
+bl_x41=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi,bl_zi,bl_add)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,as.matrix(rep(Inf,n-1)))
+
+bu_x41=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi,bu_zi,bu_add)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0,
+                  as.matrix(rep(0,n)),as.matrix(rep(0,n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+               as.matrix(rep(0,n))))
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0,
+               as.matrix(rep(0,n)),as.matrix(rep(0,n))) )
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0,as.matrix(rep(0,n)),
+               as.matrix(rep(0,n))))
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0,as.matrix(rep(0,n)),
+                 as.matrix(rep(0,n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+            as.matrix(rep(0,n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,
+                   matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n),
+                   0,matrix (rep(0, nrow(Sector)*n), nrow(Sector), n), matrix (rep(0, nrow(Sector)*n), nrow(Sector), n))
+
+# Cost constraints 
+cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1,as.matrix(rep(0,n)), as.matrix(rep(0,n))))
+
+#Conic constraints
+cone_cst=cbind(RR,diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),-diag(1,n),diag(0,n))
+
+# Constraint matrix
+a41= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,
+         Trading_constr,Delta_EUR,Delta_GBP,Sector_Size,cost_costr,cone_cst)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c41=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,
+             -Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),-Inf,as.matrix(rep(-Inf,n))))
+#upper bounds
+bu_c41=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,
+             M.sector/norm,0,as.matrix(rep(0,n))))
+
+E41=rbind(6*n+5,6*n+6,as.matrix(seq(5*n+2,5*n+3,1)))
+R=matrix(0,ncol=2 , nrow=n+1)
+cqo41=list()
+cqo41$sense= "min"                              ### We want to minmise qobj                                      ### The linear part of the problem
+cqo41$A=Matrix(a41,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo41$bc=rbind(blc=bl_c41,buc=bu_c41)               ### Constraints bounds
+cqo41$bx=rbind(blx=bl_x41,bux=bu_x41)               ### Variable bounds
+NUMCONES = 1
+cqo41$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo41$cones )= c("type","sub")
+cqo41$cones[ ,1] = list ("RQUAD", t(E41))
+
+
+cqo41$c=f41
+r=mosek(cqo41)
+
+
+##########################################################
+##########################################################
+
+#######Conic Market Impact
+
+### The linear part of the problem.
+f5<-t(-as.matrix(cbind(t(as.matrix(returns[1,])),matrix(0,nrow=1,ncol=4*n),0,matrix(0,nrow=1,ncol=n),
+                       matrix(0,nrow=1,ncol=1),
+                       matrix(-1,nrow=1,ncol=1),matrix(0,nrow=1,ncol=7*n-2))))
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,0,0.5,as.matrix(rep(0,n-3))))
+bl_zi2=as.matrix(rep(-Inf,n))
+bl_yi2=as.matrix(rep(0,n))
+bl_si=as.matrix(rep(0,n))
+bl_vi=as.matrix(rep(0,n))
+bl_wi=as.matrix(rep(0,n))
+bl_ri=as.matrix(rep(1/8,n))
+
+
+
+bl_x5=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi,bl_zi,bl_add,bl_zi2,bl_yi2,bl_si,bl_vi,bl_wi,bl_ri)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,Inf,0.5,as.matrix(rep(Inf,n-3)))
+bu_zi2=as.matrix(rep(Inf,n))
+bu_yi2=as.matrix(rep(Inf,n))
+bu_si=as.matrix(rep(Inf,n))
+bu_vi=as.matrix(rep(Inf,n))
+bu_wi=as.matrix(rep(Inf,n))
+bu_ri=as.matrix(rep(1/8,n))
+
+
+bu_x5=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi,bu_zi,bu_add,bu_zi2,bu_yi2,bu_si,bu_vi,bu_wi,bu_ri)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0,
+                  as.matrix(rep(0,n)),as.matrix(rep(0,7*n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,7*n))))
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0,
+                     as.matrix(rep(0,n)),as.matrix(rep(0,7*n))) )
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,7*n))))
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0,as.matrix(rep(0,n)),
+                       as.matrix(rep(0,7*n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,7*n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,7*n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,
+                   matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n),
+                   0,matrix (rep(0, nrow(Sector)*n), nrow(Sector), n), matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n))
+
+# Cost constraints 
+cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1,as.matrix(rep(0,n)), as.matrix(rep(0,7*n))))
+
+#Conic constraints
+
+cone_cst=cbind(RR,diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),-diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),
+               diag(0,n),diag(0,n),diag(0,n))
+transac1=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n)
+               ,diag(0,n),diag(0,n),diag(0,n))
+transac2=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),diag(1,n)
+               ,diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+transac3=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),diag(1,n),diag(0,n),diag(0,n),
+               -diag(1,n),diag(0,n),diag(0,n))
+transac4=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(1,n),
+               diag(0,n),-diag(1,n),diag(0,n))
+
+# Constraint matrix
+a5= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,
+          Trading_constr,Delta_EUR,Delta_GBP,Sector_Size,cost_costr,cone_cst,transac1,transac2,transac3,transac4)###constraints matrix bl_c < a%*%x < bu_c
+
+
+###constraints bounds###
+
+#lower bounds
+bl_c5=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,
+              -Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),-Inf,as.matrix(rep(-Inf,n)),as.matrix(rep(-Inf,n)),
+              as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))
+#upper bounds
+bu_c5=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,
+              M.sector/norm,0,as.matrix(rep(0,n)),as.matrix(rep(0,n)),
+              as.matrix(rep(Inf,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))
+
+E15=rbind(6*n+5,6*n+6,as.matrix(seq(5*n+2,5*n+3,1)))
+
+R=matrix(0,ncol=2 , nrow=n+1)
+cqo5=list()
+cqo5$sense= "min"                              ### We want to minmise qobj
+
+cqo5$A=Matrix(a5,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+cqo5$bc=rbind(blc=bl_c5,buc=bu_c5)               ### Constraints bounds
+cqo5$bx=rbind(blx=bl_x5,bux=bu_x5)               ### Variable bounds
+NUMCONES = 2*n+1
+cqo5$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo5$cones )= c("type","sub")
+cqo5$cones[ ,1] = list ("RQUAD", t(E15))
+i=0
+for (i in 1:n ) {
+  E25=matrix(0,ncol=1,nrow=3)
+  E25=rbind(9*n+i,10*n+i,8*n+i)
+  cqo5$cones[ ,i+1] = list ("RQUAD", t(E25))
+  E35=matrix(0,ncol=1,nrow=3)
+  E35=rbind(13*n+i,11*n+i,12*n+i)
+  cqo5$cones[ ,i+n+1] = list ("RQUAD", t(E35))
+}
+
+cqo5$c=f5
+r=mosek(cqo5)
