@@ -21,9 +21,10 @@
 		\usepackage{titlesec}
 		%\usepackage{subfigure}
 		\titleformat{\chapter}[hang]{\bf\huge}{\thechapter}{2pc}{}
+		\setlength{\parskip}{4pt}
 		\usepackage{lastpage} 
 		\usepackage{array}
-		\usepackage{hyperref}
+		\usepackage[pdfborder={0 0 0}]{hyperref}
 		\usepackage{amsmath,amsfonts,amssymb,amsthm,epsfig,epstopdf,titling,url,array,xpatch}
 		\usepackage{listings}
 		\usepackage{color}
@@ -33,7 +34,11 @@
 		\usepackage{subcaption}
 		\usepackage{tikz}
 		\usepackage{multirow}
-		
+		\usepackage{algpseudocode}
+		\usepackage{algorithm}
+		\usepackage{booktabs}
+		\usepackage{xcolor,colortbl}
+		\usepackage{verbatim}
 		
 \definecolor{mygreen}{rgb}{0,0.6,0}
 \definecolor{mygray}{rgb}{0.5,0.5,0.5}
@@ -176,16 +181,36 @@
 
 		\pagenumbering{Roman} \setcounter{page}{1}
 
-                \chapter*{Abstract}
-		
-				\pagenumbering{arabic} \setcounter{page}{1}
-		\addcontentsline{toc}{chapter}{Introduction}
-		
-In this  report we prove some simple properties of equivalence between the different formulations of Markowitz optimization problem. In the second part, we perform a standard conic quadratic optimization of the Markowitz problem in R using the package NAGFWrappers.
 
+
+		\chapter*{Acknowledgement}
+We would like to thank our Morgan Stanley supervisor Colin Umansky, who's given us support, invaluable data and precious explanations all along this seminar. We would like to thank our Centrale Paris supervisor Lionel Gabet, for his interest in our project and support.  We would like to thank professors Pawan Kumar and Damien Chalet from Centrale Paris for their answers and help.
+\par
+Last but not least, we would like to thank  software suppliers NAG and Mosek, for granting us free access to their software. 
+
+
+                \chapter*{Abstract}
+
+\indent Optimization is attracting high interest in trading floors especially in quantitative ones, where the volumes are very important and risk positions framed by the Bank strategy and regulators' restrictions .This optimization may sometimes be very greedy in term of time depending on the problem's formulation.
+\par
+In this report we will study the optimization of a simple Markowitz portfolio with full constraints including nonlinear and discontinuous ones, trading costs will be estimated and included in the problem.
+\par
+First we will model and practice numerical optimization on portfolios restricted to CAC40, DAX30 and Footsie100 without trading costs.
+\par
+And then we will estimate two types of transaction costs continuous and discontinuous ones and introduce integer and quadratic programming that will help us solve these optimization problems.
+\par
+In the third part we will treat the different type of risks that a portfolio is exposed to, and the statistical methods used to estimate it.
+\par
+Finally we will compare different optimization strategies over time.
+		
+
+
+		
+		%\addcontentsline{toc}{chapter}{Introduction}
+		
 
 		\tableofcontents
-
+		\listoffigures
 
 		% ---------------------------------- les chapitres en numérotation arab---------------------------------------
 
@@ -205,7 +230,1286 @@ In this  report we prove some simple properties of equivalence between the diffe
 
 		%--------------------------------------------------------------------------------------------------------------------------
 
+	
 		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+
+		\chapter{Practice of numerical optimization}
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\pagenumbering{arabic}\setcounter{page}{1}
+		\section{Numerical optimization on CAC 40 and DAX 30 portfolios}
+
+In this section we will optimize two different portfolios CAC40 and DAX30 using both NAG and Mosek packages in R, using the following conventions:
+In a first step we will consider the formulation of problem \ref{problem3} (Maximize Expected Return with Risk Aversion):
+\[\begin{cases}
+\text{maximize } a^{t}x-\lambda x^{t}Vx \\
+\text{subjected to } L \leq Ax \leq U 
+\end{cases} \]
+as described in the section 2.  We minimize the risk using the given covariance matrix  $V$ over the last 30 days, and $r$ the yesterday daily close return of stocks under the following constraints: 
+\[ \begin{cases} 
+i/ \text{ delta neutrality} \\
+
+ii/ -0.05 \leq x_i \leq 0.05
+\end{cases} \] 
+
+%--------------------------------------------------------------------------------------------------------------------------
+
+		\subsection{Numerical optimization using NAG package}
+We start by giving the following program code to perform the optimization with NAG. NAG optimizer is easy to use, since it has for each optimization problem a proper function. In our case we use the e04nf function, however there are many other functions that could be used without changing the results (as e04nc for example).
+
+\lstinputlisting[firstline=9, lastline=113]{CodeR_1.R}
+
+\par
+We run this code to obtain the optimized weight for both CAC 40 and DAX 30 (cf. graphics below), for different $\lambda  \text{ ranging from } 10^{-5} \text{ to } 10^{7}$. 
+
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC1.png} 
+    \caption{$\lambda=10^{-5}, 10^{-4}, 10^{-3}, 10^{-2}$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC2.png} 
+    \caption{$\lambda=10^{-1}$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC3.png} 
+    \caption{$\lambda=1$} 
+    \label{fig7:c} 
+\vspace{0.1ex}
+  \end{subfigure}%%
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC4.png} 
+    \caption{$\lambda=10$} 
+    \label{fig7:d} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC5.png} 
+    \caption{$\lambda=10^{2}$} 
+    \label{fig7:e} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC6.png} 
+    \caption{$\lambda=10^{3}$} 
+    \label{fig7:f} 
+\vspace{0.1ex}
+  \end{subfigure}
+ 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC7.png} 
+    \caption{$\lambda=10^{4}$} 
+    \label{fig7:g} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC8.png} 
+    \caption{$\lambda=10^{5}$} 
+    \label{fig7:h} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \caption{CAC40 optimized weights for different aversion risk factors $\lambda$}
+  \label{fig1} 
+\end{figure}
+
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX1.png} 
+    \caption{$\lambda=10^{-5}, 10^{-4}, 10^{-3}, 10^{-2}$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX2.png} 
+    \caption{$\lambda=10^{-1}$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX3.png} 
+    \caption{$\lambda=1$} 
+    \label{fig7:c} 
+\vspace{0.1ex}
+  \end{subfigure}%%
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX4.png} 
+    \caption{$\lambda=10$} 
+    \label{fig7:d} 
+\vspace{0.1ex}
+  \end{subfigure} 
+
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX5.png} 
+    \caption{$\lambda=10^{2}$} 
+    \label{fig7:e} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX6.png} 
+    \caption{$\lambda=10^{3}$} 
+    \label{fig7:f} 
+\vspace{0.1ex}
+  \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+  \ContinuedFloat 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX7.png} 
+    \caption{$\lambda=10^{4}$} 
+    \label{fig7:g} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX8.png} 
+    \caption{$\lambda=10^{5}$} 
+    \label{fig7:h} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \caption{DAX30 optimized weights for different aversion risk factors $\lambda$}
+  \label{fig1} 
+\end{figure}
+
+In order to measure the effect of the risk aversion on the optimization performances (optimized return and risk) we analyse the following graphics for both CAC 40 and DAX 30. 
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC9.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC10.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{CAC40 optimization performances}
+  \label{fig3} 
+\end{figure}
+
+We notice that the optimal risk aversion parameter levels should in the interva: $[0.1,10]$ in order to avoid the cases  high portfolio return/high risk,  low portfolio return/risk.
+\newline
+Hence we notice the following relationship between the risk aversion parameter and the portfolio performances:
+\[ \begin{cases} 
+\lambda \rightarrow 0 \  \Longrightarrow return,risk \rightarrow  High  \\
+ \lambda \rightarrow \infty \Longrightarrow return,risk \rightarrow 0
+\end{cases} \] 
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX9.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX10.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{DAX30 optimization performances}
+  \label{fig4} 
+\end{figure}
+%--------------------------------------------------------------------------------------------------------------------------
+
+		\subsection{Numerical optimization using RMosek package}
+To perform the optimization with Mosek package we used the following program code. Mosek is less complex to use compared to NAG, but follows the same optimization patters as NAG (cf. next section where we compare the programming methods used by both optimizers). 
+
+\lstinputlisting[firstline=1, lastline=47]{CodeR_2.R}
+
+Below the graphics obtained with Mosek, which are quite similar of those obtained with NAG above.
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/retCACMosekNAG.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/rskCACMosekNAG.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{CAC40 optimization performances in Mosek}
+  \label{fig4} 
+\end{figure}
+
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/retDAXMosekNAG.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/rskDAXMosekNAG.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{DAX30 optimization performances in Mosek}
+  \label{fig4} 
+\end{figure}
+
+%--------------------------------------------------------------------------------------------------------------------------
+		\subsection{Comparison between NAG and Mosek Packages}
+In this section we will draw a simple comparison between NAG and Mosek principal features based on our modest experience dealing with both packages.
+\newline
+To make it simple the principal differences between these packages are listed below:
+\begin{itemize}
+\item Nag has a simple formulation of the problem at a first glance than Mosek, but needs a specification of the function depending on the optimization problem 
+\item Mosek optimizer is without any doubt faster than NAG (see figure below with performances of NAG and Mosek applied to the previous optimization problem)
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=	0.4\linewidth]{img/timeNAGMosek.png} 
+    \vspace{0.1ex}
+    \caption{Nag vs Mosek time performances in milliseconds} 
+   \label{fig7} 
+  \end{figure}%% 
+
+\item Mosek handles integer programming and conic formulation
+\end{itemize}
+In brief based on the previous remarks, we will prefer hereafter in our project the use of Mosek than NAG.
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+
+
+	\section{Analysis of CAC40 and DAX30 correlations}
+
+In this section we draw the heat maps of both CAC40 and DAX30 stocks, using the following legend:
+\begin{itemize}
+	\item Red = high decorralation ranging between $[-1,0]$ 
+	\item Green = Correlation ranging between $[0,0.8]$      \newline
+	\item Blue = High correlation ranging between $[0.8,1]$
+\end{itemize}
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=	1.05\linewidth]{img/HMCAC.png} 
+    \vspace{0.1ex}
+    \caption{CAC40 correlation heat map} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.05\linewidth]{img/HMDAX.png}  
+    \vspace{0.1ex}
+    \caption{DAX30 correlation heat map}    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \end{figure}%% 
+We notice that in both matrices, stocks are very correlated
+\par
+Next we will investigate eigenvalues of both matrices to verify their definite positive caracter, the necessary condition for performing a convex optimization. We draw below a bar chart of both CAC40 and DAX30 correlation matrices eigenvalues.
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/EVCAC.png} 
+    \caption{CAC 40, we omitted the first eigenvalue $\approx 20$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/EVDAX.png} 
+    \caption{DAX30, we omitted the first eigenvalue $\approx 15$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{Sorted Eigenvalues of CAC40 and DAX30 correlation matrices }
+  \label{fig12} 
+\end{figure}
+
+We notice that both CAC40 and DAX30 are singular, this surprising fact is due to numerical approximation, since we have numerous eigenvalues wich are equal to $\pm 10^{-16}$. This surprising fact is however without any impact on the optimization on both NAG and Mosek since the interior point algorithm does not need to inverse the covariance matrix (see the appendix \ref{numerical optim}) , and hence we are not sure of the optimality of the minimum point obtained with both NAG and Mosek.
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+
+	\section{CAC40 and DAX30 optimization using sector limitation constraints} \label{sector limitation constrain}
+In this section, using Mosek optimizer, we introduce a new constraint on the stocks' sectors. We use the MSCI GICS sector classification, that includes the following ten sectors: \textit{Energy, Materials, Industrials, Consumer Discretionary, Consumer Staples, Health Care, Financials, Information Technology, Telecommunications Services and Utilities}. Let's denote each sector by $S_i  \text{ for } 1\leq i \leq 10$ and each stock $ s_j \text{ for } 0\leq j \leq N \text{ where } N  \in \{30,40 \}$ depending on DAX30 or CAC40 optimization.
+Our new  constraints are:
+\[ \begin{cases} 
+i/ \text{ deltra neutrality} \\
+ii/ -0.05 \leq x_i \leq 0.05 \\
+iii/ \forall i \in [1,10] \ \ l_i \leq \sum_{j=1}^{j=N} \mathbb{I}_{s_j \in S_i} \leq u_i
+\end{cases} \] 
+In the following example we perform the Mosek optimization  using a delta neutrality among each sector iii/ $l_i= u_i=0$, Hence global delta neutrality is useless. We obtain the following result:
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC15.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CAC16.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{CAC40 optimization performances with sector constraints}
+  \label{fig4} 
+\end{figure}
+
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX15.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAX16.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{DAX30 optimization performances with sector constraints}
+  \label{fig4} 
+\end{figure}
+
+We notice generally that with a more restricting condition as the delta neutrality among each sector, we obtain different results for both CAC40 and DAX30, especially in the window of $\lambda$s where occurs the shift from the two extreme situations (high risk, low return) to (low risk, high return). The difference is obvious in the case of DAX30 where for the same level of optimized risk the return is lower for the portfolio with delta neutrality constraint on sectors.
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{CAC40 , DAX30 and Footsie optimization using book value and trading constraints} \label{CAC+DAX+Footsie}
+In this section, we will start by introducing a book value such as our new constraints become: 
+\[ \begin{cases} 
+i/ \text{ Currency deltra neutrality} \\
+ii/ -0.05 \leq x_i \leq 0.05 \\
+iii/ Euro Booksize = \sum_{i=1}^{i=N}  \left|x_i \mathbb{I}_{s_i \in \mbox{\euro}} \right| \leq M_1,  \ \ M_1=0.4M\\
+iii/ GBP Booksize= \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{s_i \in \pounds} \right| \leq M_2, \ \ M_2=0.6M\\
+iv/  \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq \theta  M \\
+\end{cases} \] 
+
+This third constraint has an important role in limiting the amount of money at risk, but also the portfolio's with maximum weights (positive or negative). We choose for this optimisation a mximum Euro booksize of $0.4 M$ wich correspond to the proportion of Euro stocks in our portfolio, and  $0.6 M$ for GBP stocks.
+\newline
+In all previous optimization problems we solved the problem like we are constructing our portfolio for the first time, but once we the construction step is achieved the optimisation will depend on the previous composition and then comes the importance of the fourth constraint which has an important role in limiting the transaction costs as it limits the turnover on each stock.
+\newline
+we have tried optimizing the problem for different values of trading constraints factor $\theta$  between 0 and 1 ,The graphs below represents the results of this optimisation 
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF10.png} 
+    \caption{$xold$}
+    \label{fig7:a} 
+    \vspace{0.1ex}
+ \caption{CAC40+DAX30+Footsie100 old portfolio}
+  \label{fig1}
+\end{figure}
+
+For very small values of $\theta$ we notice as expected that the weights are the same as for the old portfolio, but starts changing for values of $\theta$ between $10^{-4}$ and $10^{-2}$, and stops changing for values of $\theta$ higher than $10^{-2}$.
+\newline
+This can be explained by the fact that when $\theta M$ is higher than 0.1 wich is the maximum that  $\left|x_i-x_i^{old}\right|$ can achieve considering the bounds on the stock weights 0.05 , then for values of $\theta \geq 0.005$ ($M=20$), the trading constraint has no meaning.
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF11.png} 
+    \caption{$\theta=10^{-5}$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF12.png} 
+    \caption{ $\theta=10^{-4}$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF13.png} 
+    \caption{$\theta=10^{-3}$} 
+    \label{fig7:c} 
+\vspace{0.1ex}
+  \end{subfigure}%%
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF14.png} 
+    \caption{$\theta=10^{-2}$} 
+    \label{fig7:d} 
+\vspace{0.1ex}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF15.png} 
+    \caption{$\theta=10^{-1}$} 
+    \label{fig7:e} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/CDF16.png} 
+    \caption{$\theta=1$} 
+    \label{fig7:f} 
+\vspace{0.1ex}
+  \end{subfigure}
+  \caption{CAC40+DAX30+Footsie100 optimized weights for different trading constraint factors $theta$}
+  \label{fig1} 
+\end{figure}
+
+
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+%\newpage
+
+%\section{How to choose the optimal risk aversion parameter}
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		\label{TC}
+		\chapter{Practice of numerical optimization with transaction costs and market impact}
+%--------------------------------------------------------------------------------------------------------------------------
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+
+\section{Analyzing and estimating transaction costs}
+We present in this section a transaction cost model introduced by Grinold and Kahn in \cite{GriKahn}, and confirmed empirically by Loeb in 1983.
+\newline
+First of all we should keep in mind that analysing and estimating transaction costs is both difficult and important. Market impact is especially difficult to estimate because it is so difficult to measure.
+\newline
+Estimating transactions costs is important because accurate estimates can significantly affect added value, by helping the trader choose which stocks to trade when constraining the turnover, and by helping him decide when to trade when scheduling trades to limit market impact.
+\newline
+The Grinold and Kahn approach in \cite{GriKahn}, which has proven fruitful, models costs based on inventory risk.
+\newline
+The inventory risk estimates market impact base on a liquidity supplier's risk of facilitating the trade. Here heuristically is how that works. First given a proposed trade of size $V_{\mbox{trade}}$, the estimated time before a sufficient number of opposing trades appears in the market to clear out the liquidity supplier's net invetory in the stock is:
+\[ \tau_{\mbox{clear}} \propto \dfrac{V_{\mbox{trade}}}{\overline{V}_{\mbox{daily}}} \]
+where $ \overline{V}_{\mbox{daily}} $ is the average daily volume (or forecast daily volume) in the stock. The meaning of the equation is if you cant to trade one day's volume, the liquidity supplier's estimated time to clear will be on the order of one day, and so on.
+\newline
+This time to clear implies an inventory risk, based on the stock's volatility:
+\[ \sigma_{\mbox{inventory}}=\sigma \sqrt{\dfrac{\tau_{\mbox{clear}}}{250}} \]
+This equation converts the stock's annual volatility $\sigma$ to a volatility over the appropriate horizon, and assumes that we measure $\tau_{\mbox{clear}}$ in days, and that a year contains 250 trading days.
+\newline
+The final step in the model assumes that the liquidity supplier demands a return (price concession or market impact) proportional to this inventory risk:
+\[ \dfrac{\Delta P}{P} = c . \sigma_{\mbox{inventory}} \]
+where $c$ is the risk/return trade-off, and we measure return relative to the bid price for a seller-initiated trade relative to the offer for a buyer-initiated trade. Since there exists some competition between liquidity suppliers, the market will help set the constant $c$.
+\newline
+For a seller-initiated trade, the transactions cost will include not only the price concession from the offer to the bid, but an additional concession below the bid price, depending on the size of the trade. The argument for the buyer-initiated trade is similar.
+\newline
+Combining the previous equations, adding commissions, and converting to units of return leads to
+\[ \mbox{Cost }= \mbox{ commision }+( \dfrac{ \mbox{ bid / ask spread }}{\mbox{ price }})+ c  \sqrt{\dfrac{\tau_{\mbox{clear}}}{250}} \]
+where $c$ includes the stock's volatility, a risk/return trade-off, and the conversion from annual to daily units.
+\par
+Hence the cost formula to be introduced in our optimization problem should be multiplied by the amount or weight traded. If we call $T(x)=\mbox{Cost}. x$, one consequence of the inventory risk approach is that the total trading cost $T$ depends on the cost per share times the number of shares/weight traded, it increases as the $3/2$ power of the amount traded. This agrees remarkably with the empirical work of Loeb.
+\par
+In next sections we will consider different formulations of the total trading cost.
+\par
+Before proceding to the different formulations of the total trading cost, we will compare how the Matched Volume of stock is related to Median Daily Volume (MDV), which are two informations available in the market, 
+we notice that the two values are correlated in the following graph:
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/regMVMDV.png} 
+  \caption{Comparison between Matched Volulme and MDV}
+  \label{fig1} 
+\end{figure}
+The linear gaussian regressian shows a high correlation of $76 \% $ and a coefficient $R^2 = 60 \%$. 
+
+
+\section{Continuous transaction costs}
+The previous section of numerical optimization did not include transaction costs, in this section we no longer assume that transactions (buying or short selling a stock) are costless. 
+\newline
+The transaction cost denoted $T$, with respect to previous notations, can be modeled in different ways, for example we can assume a continuous cost: 
+\begin{equation}
+\begin{cases} 
+T(x_j)=c^{+} x_j, \ \ x_j\geq0 \\
+T(x_j)=c^{-} x_j, \ \ x_j\leq0  \\
+\end{cases} 
+\end{equation}
+where $b,c^{+},c^{-}\geq0$
+\begin{figure}[H] 
+\centering
+\begin{tikzpicture}
+  \draw[->] (-1,0) -- (1,0) node[right] {$x$};
+  \draw[->] (0,-1) -- (0,1) node[above] {$T(x)$};
+  \draw[scale=1,domain=0:1,smooth,variable=\x,green] plot ({\x},{\x});
+  \draw[scale=1,domain=0:1,smooth,variable=\x,red]  plot ({-\x},{\x});
+\end{tikzpicture} 
+\caption{Continuous Transaction cost function}
+  \label{fig10} 
+\end{figure}
+The related optimization problem formulation to this cost modeling could be presented in two different ways:
+\begin{itemize}
+  \item normal minimization 
+ \label{equation1}
+ \begin{equation} 
+\begin{cases}
+\text{maximize } a^{t}x - \lambda x^{t}Vx\\
+\text{wrt  } i/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  ii/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
+\ \ \ \ \  iii/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\ \ \ \ \  vi/ \ \ c^{+} x_j \leq y_j  \\
+\ \ \ \ \  v/ \ \ -c^{-} x_j  \leq y_j   \\
+\end{cases}
+\end{equation}
+ \item minimizing objective function with transaction cost 
+\begin{equation}
+ \begin{cases}
+ \text{maximize } a^{t}x -\lambda x^{t}Vx-T(x)\\
+\text{wrt  } i/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  ii/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
+\ \ \ \ \  iii/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\end{cases}
+\end{equation}
+\end{itemize}
+Another formulation of continuous transaction costs is as follow: 
+\label{Eq Continuous Quad Cost}
+\begin{equation}
+ \begin{cases} 
+T(x_j)=c^{+} x_j^2, \ \ x_j\geq0 \\
+T(x_j)=c^{-} x_j^2, \ \ x_j\leq0  \\
+\end{cases} 
+\end{equation}
+But this formulation has the downside of introducing quadratic constraints if we adopt the first optimization formulation, However in section \ref{CQOP} we will show how we can use conic quadratic programming to overcome this difficulty in a pretty elegant way.
+\newline
+Hereafter we apply an optimization with transaction costs as in the section \ref{CAC+DAX+Footsie}, our problem becomes : 
+\[ \begin{cases}
+ \text{maximize } a^{t}x-\lambda x^{t}Vx -T(x)\\
+\text{wrt  } i/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \ ii/ Euro Booksize = \sum_{i=1}^{i=N}  \left|x_i \mathbb{I}_{s_i \in \mbox{\euro}} \right| \leq M_1  \\ 
+\ \ \ \ \ ii/  GBP Booksize= \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{s_i \in \pounds} \right| \leq M_2 \\
+\ \ \ \ \  iii/  \sum_{i=1}^{i=N}  \left|x_i-x_i^{old}\right| \leq \theta  M , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\end{cases} \]
+
+In order to compare quadratic and linear formulations we can not use the same cost constant $c_i$, so we have calibrated the cost constant of the quadratic model on the one with linear costs using a simple regression .\newline
+
+Graphs below illustrate the the different result of the optimisation of both models.
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/CDF29.png} 
+    \caption{Trading cost} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/CDF30.png} 
+    \caption{optimized return} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\end{figure}
+
+\begin{figure}[H]
+  \ContinuedFloat 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/CDF31.png} 
+    \caption{optimized risk} 
+    \label{fig7:c} 
+\vspace{0.1ex}
+  \end{subfigure}%%
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/CDF32.png} 
+    \caption{objective function} 
+    \label{fig7:d} 
+\vspace{0.1ex}
+  \end{subfigure} 
+\caption{Linear and quadratic trading costs}
+\label{fig7}
+\end{figure}
+
+In the figure below we draw the optimized weights obtained for both the formulation with linear cost function and quadratic cost function, we see clearly the difference between the two results even if the optimized return and risk are close.
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=0.6\linewidth]{img/qcostlcost.png} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+ \caption{quadratic cost vs linear cost}
+  \label{fig1}
+\end{figure}
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{Uncontinuous transaction costs}
+
+More realistically, we can assume a constant cost plus a linear cost:
+\begin{equation}
+ \begin{cases} 
+T(x_j)=b+c^{+} x_j, \ \ x_j\geq0 \\
+T(x_j)=0,       \ \ \ \ \   \ \ \ \ \ \ x_j=0     \\
+T(x_j)=b-c^{-} x_j, \ \ x_j\leq0 
+\end{cases} 
+\end{equation}
+where $b,c^{+},c^{-}\geq0$
+\begin{figure}[H] 
+\centering
+\begin{tikzpicture}
+  \draw[->] (-1,0) -- (1,0) node[right] {$x$};
+  \draw[->] (0,0) -- (0,1) node[above] {$T(x)$};
+  \draw[scale=1,domain=0.1:1,smooth,variable=\x,green] plot ({\x},{0.5+\x});  
+  \draw[scale=1,domain=-1:-0.1,smooth,variable=\x,red]  plot ({\x},{0.5-\x});
+\end{tikzpicture} 
+\caption{Uncontinuous Transaction cost function}
+  \label{fig10} 
+\end{figure}
+This latter model, having the merit of being more realistic, leads to an integer programming like formulation as below:
+\begin{equation}
+ \begin{cases}
+\text{maximize } a^{t}x - \lambda x^{t}Vx \\
+\text{wrt  } i/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  ii/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
+\ \ \ \ \  iii/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\ \ \ \ \  vi/ \ \ bz_j+c^{+} (x_j-x_j^{old}) \leq y_j  \\
+\ \ \ \ \  v/ \ \ bz_j-c^{-} (x_j-x_j^{old})  \leq y_j   \\
+\ \ \ \ \  vi/ \ \ z_j l_j \leq (x_j-x_j^{old}) \leq z_j u_j \\
+\ \ \ \ \  vii/ \ \  z_j \in \{0,1\}
+\end{cases} 
+\end{equation}
+In our case the $i/$ condition could be replaced with the delta neutrality constraint for each sector GICS, introduced in section \ref{sector limitation constrain}:
+\[ i^{*}/ \ \ \forall i \in [1,10] \ \  \sum_{j=1}^{j=N} \mathbb{I}_{s_j \in S_i} =0 \] 
+
+
+
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{Comparison between continuous and uncontinuous linear transaction costs}
+
+In this section we will solve and compare these both problems applied to DAX30 using Mosek, with this numerical values: $b=0.2, \ \ c^{+}=c^{-}=0.1$.
+Ignoring the conditions of trading constraints and considering only global delta neutrality for $i/$ we obtain the following results:
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/DAXTC1.png} 
+    \caption{optimized return for different risk aversion parameters} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.75\linewidth]{img/DAXTC2.png} 
+    \caption{optimized risk for different risk aversion parameters} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{DAX30 optimization performances with transaction cost constraint}
+  \label{fig10} 
+\end{figure}
+
+
+Performing the optimization problem with integer variables seems very cost saving since different weights are set to $0$ in order to satisfy the conditions $v/$ and $vi/$ (see figure below), however the only issue of integer programming is that being an NP-Hard problem, the computation time is not polynomial and hence could last few minutes as it was the case for the DAX30 and might not find a solution as it was the case for the CAC40. The challenge of choosing this technic is to take the best computable optimization formulation, and to choose genuinely a hot start point to converge quickly, an idea of choosing a warm start point in our case is to take the linear transaction cost formulation solution.  
+		
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCD1.png} 
+    \caption{DAX30 discontinuous cost $\lambda=10$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCC1.png} 
+    \caption{ continuous cost $\lambda=10$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\end{figure}
+
+\begin{figure}[H]
+  \ContinuedFloat 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCD2.png} 
+    \caption{discontinuous cost $\lambda=10^2$} 
+    \label{fig7:c} 
+\vspace{0.1ex}
+  \end{subfigure}%%
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCC2.png} 
+    \caption{continuous cost $\lambda=10^2$} 
+    \label{fig7:d} 
+\vspace{0.1ex}
+  \end{subfigure} 
+\end{figure}
+
+\begin{figure}[H]
+  \ContinuedFloat 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCD3.png} 
+    \caption{discontinuous cost $\lambda=10^3$} 
+    \label{fig7:e} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCC3.png} 
+    \caption{ continuous cost $\lambda=10^3$} 
+    \label{fig7:f} 
+\vspace{0.1ex}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCD4.png} 
+    \caption{discontinuous cost $\lambda=10^4$} 
+    \label{fig7:e} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCC4.png} 
+    \caption{ continuous cost $\lambda=10^4$} 
+    \label{fig7:f} 
+\vspace{0.1ex}
+  \end{subfigure}
+\end{figure}
+\begin{figure}[H]
+  \ContinuedFloat 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCD5.png} 
+    \caption{discontinuous cost $\lambda=10^5$} 
+    \label{fig7:g} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/DAXTCC5.png} 
+    \caption{ continuous cost $\lambda=10^5$} 
+    \label{fig7:h} 
+\vspace{0.1ex}
+  \end{subfigure} 
+  \caption{Comparison of optimized weights for different aversion risk factors for both linear and discontinuous transaction cost modeling}
+  \label{fig1} 
+\end{figure}
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+
+
+\section{Conic quadratic programming} \label{CQOP}
+
+In this section we will revisit and use the equivalence between markowitz maximization of return with risk aversion and the conic quadratic formulation as shown in \ref{Markowitz Theory}.
+\newline
+The conic technics will not be developed in the following subsections, refer to the appendix for more details. 
+%--------------------------------------------------------------------------------------------------------------------------
+		\subsection{Markowitz optimization using Conic Quadratic Optimization}
+
+Using the problem (\ref{Problem Conic}) formulation, we rewrite our problem as a conic quadratic one by introducing new optimization variables and the cholesky decomposition $F$ of our covariance matrix $V$ we can state our problem (\ref{equation1})  as a conic quadratic one:
+ \begin{equation}  
+\begin{cases}
+\text{maximize }  a^{t}x -\lambda v\\
+\text{wrt  } i/ \ \ Fx-t=0 \mbox{ and } x^t V x \leq v \\
+\ \ \ \ \  ii/ \ \ w=1  \\
+\ \ \ \ \  iii/ \ \ \|t\|^2 \leq 2vw  \ \ v,w \geq 0 \\
+\ \ \ \ \  iv/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  v/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
+\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\ \ \ \ \  vii/ \ \ c^{+} x_j \leq y_j  \\
+\ \ \ \ \  viii/ \ \ -c^{-} x_j  \leq y_j   \\
+\end{cases}
+\end{equation}
+		
+
+%--------------------------------------------------------------------------------------------------------------------------
+		\subsection{Quadratic transaction costs}
+An advantage of the very useful conic formulation relies in the fact that we can introduce quadratic constraints as in equation \ref{Eq Continuous Quad Cost}, and other complicated non-linear functions in the form $x^{\frac{p}{q}}$ and $x^{-\frac{p}{q}}$ with $\frac{p}{q} \geq 1$ as we will see later.
+\newline
+Adopting the same conventions as in the previous paragraph our new problem with quadratic transaction costs becomes after conic transformations:
+\begin{equation}  
+\begin{cases}
+\text{maximize }  a^{t}x -\lambda v\\
+\text{wrt  } i/ \ \ Fx-t=0 \mbox{ and } x^t V x \leq v \\
+\ \ \ \ \  ii/ \ \ w=1  \\
+\ \ \ \ \  iii/ \ \ \|t\|^2 \leq 2vw  \ \ v,w \geq 0 \\
+\ \ \ \ \  iv/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  v/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
+\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
+\ \ \ \ \  vii/ \ \ -z_i \leq x_i \leq z_i \\
+\ \ \ \ \  viii/ \ \ z_{i}^{2} \leq 2 s_i y_i   \mbox{ and } s_i, y_i \geq 0 \\
+\ \ \ \ \  ix/  \ \ z_{i}^{2} \leq 2 r_i y_i   \mbox{ and } r_i, y_i \geq 0 \\
+\ \ \ \ \  x/  \ \ s_i = \dfrac{1}{c^{+}}   \mbox{ and } r_i = \dfrac{1}{c^{-}}  \\
+\end{cases}
+\end{equation}
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+		\subsection{Market Impact}
+ We have shown in the paragraph above that a  more realistic model of transaction costs  (market impact cost) of a single asset has the form: 
+\begin{equation}
+  commission + \dfrac{bid}{ask}-spread+\zeta \sqrt{\dfrac{trade \ volume}{daily \ volume}}
+\end{equation}
+The last term is the market impact cost, and captures that the price of an asset increases or decreases if you buy or sell large quantities, respectively, it can be approximated as
+\begin{equation}
+ \zeta_i \sqrt{\dfrac{(trade \ volume)_i}{(daily \ volume)_i}}=m_i \sqrt{|x_i|} 
+\end{equation}
+where the parameters $ \zeta_i $ and $m_i$ should be estimated for each stock. Hence we obtain a constraint as follow:
+\begin{equation}
+ m_i \sqrt{|t_i|} *x_i = m_i |t_i|^{\frac{3}{2}} \leq y_i \mbox{  where } t_i = x_i-x_i^{old} 
+\end{equation}
+\newline
+Hence as we did before we can operate a conic transformation using the market impact, as follow: 
+\begin{equation}  
+\begin{cases}
+\text{maximize }  a^{t}x -\lambda v \\
+\text{wrt  } i/ \ \ Fx-t=0 \mbox{ and } x^t V x \leq v \\
+\ \ \ \ \  ii/ \ \ w=1  \\
+\ \ \ \ \  iii/ \ \ \|t\|^2 \leq 2vw  \ \ v,w \geq 0 \\
+\ \ \ \ \  iv/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  v/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
+\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\frac{2 u_j}{M}  ] \\
+\ \ \ \ \  vii/ \ \ -z_i \leq x_i \leq z_i \\
+\ \ \ \ \  viii/ \ \ z_{i}^{2} \leq 2 s_i y_i   \ \  s_i, y_i \geq 0 \\
+\ \ \ \ \  ix/  \ \ w_{i}^{2} \leq 2 r_i q_i  \ \  r_i, y_i \geq 0 \\
+\ \ \ \ \  x/  \ \  z=q, \ s=w, \ r = \dfrac{1}{8} \\
+\end{cases}
+\end{equation}
+
+%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+
+		\chapter{Assessing the risk component}
+
+%--------------------------------------------------------------------------------------------------------------------------
+As we have seen in the previous chapters, the covariance/correlation matrix plays an important role in the Markowitz-type optimization, and is the corner stone of every optimization considering a risk componenent. The estimation of such matrices is then fundamental in active portfolio management. In the following sections we present few methods that allow a robust estimation of the covariance matrix.
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{Different type of risks}
+
+We consider a portfolio containing $N$ assets with relative weights $x_i$ for asset $i$. the net return of the portfolio is then $\sum_{i=1}^{i=N} r_i x_i$ where $r_i$ is the net return of the asset $i$.
+\newline
+Hence, the expected return of the portfolio is $\sum_{i=1}^{i=N} a_i x_i$ where $a_i$ is the expected return 
+of the asset $i$, the variance of our portfolio is then:
+\[\sum\limits_{i,j} x_i \sigma_i c_{i,j} \sigma_j x_j \]
+with $\sigma_{i}^{2}$ is the variance of asset $i$ and $C=(c_{i,j})$ is the correlation of returns. We assume that returns are i.i.d (independant and identically distributed) and that we observe them during a period $T$ (in days, minutes, etc.. ). If $T$ is big enough, $\sigma_{i}$ is estimated naturally by: 
+\[ \hat{ \sigma}_{i}^{2}=\dfrac{1}{T}\sum\limits_{t=1}^{t=T} (r_{i}^{t})^2 \ \ (\mbox{we neglect the term }  \dfrac{1}{T}\sum\limits_{t=1}^{t=T} r_{i}^{t}) \]
+Unfortunately the correlation matrix $C$ is much harder to estimate. we have $N^2 - N$ coefficients to be estimated. In order to well esitimate, we need $T>N^2, \ \  T \gg N$, but in practice we often have $T \simeq N$.
+\newline
+Let us consider naturally the empirical correlation matrix E defined by: 
+\[ E_{i,j}= \dfrac{1}{T} \sum\limits_{t=1}^{t=T} w_{i}^{t} w_{j}^{t} \ \ \mbox{ where } w_{i}^{t}=\dfrac{r_i}{\sigma_i} \ \ (\mbox{we consider } \sigma_i  \mbox{ unknown } \]
+We consider, the markowitz-type problem (minimum risk/variance) defined in [ref]: finding this portfolio for an expected return $A$ given. the solution satisfies: 
+\[ x_i \sigma_i = \dfrac{  A \sum\limits_{i} c_{i,j}^{-1} \frac{a_i}{\sigma_i} }{ \sum\limits_{i,j} \frac{a_i}{\sigma_i} c_{i,j}^{-1}  \frac{a_j}{\sigma_j} } \]
+Integrating $\sigma_i$ in $x_i \mbox{ and } a_i $ leads to the equivalent form: $\tilde{w}_{C} = A \dfrac{C^{-1} \tilde{g} }{  \tilde{g}^{t} C^{-1}  \tilde{g}^{t} }$
+\par
+Consequently one can define three types of risk:
+\begin{itemize}
+\item The "\textit{In sample}" risk, we construct the portfolio on a given period from a given estimated  correlation matrix $E$. It gives the optimized weights $x_E $ and the risk : 
+\[ R_{In}^{2} = x_{E}^{t} E x_{E} = \dfrac{A^2}{a^{t} E^{-1} a} \]
+\item The "\textit{true}" risk is the risk obtained using the true correlation matrix $C$.
+\[ R_{True}^{2} = x_{C}^{t} C x_{C} = \dfrac{A^2}{a^{t} C^{-1} a} \]
+\item The "\textit{out of sample}" risk is the risk often encountered in practice, for the portfolio $x_E$ (after the use of the market portfolio)
+\[ R_{Out}^{2} = x_{E}^{t} C x_{E} = \dfrac{A^2 a^{t} E^{-1} C  E^{-1} a }{(a^{t} E^{-1} a)^2} \]
+\end{itemize}
+We consider now for example the case $C=\mathbb{I}_N $.
+\newline
+One can show ([ref] Pafka, Kondor, 03) that for $ N,T \longrightarrow + \infty$ with $\dfrac{N}{T} = cste= q <1$:
+\[ R_{In}^{2}=R_{True}^{2} \sqrt{1-q^2}=R_{Out}^{2}(1-q) \mbox{ and } R_{In}^{2}< R_{True}^{2} <R_{Out}^{2} \]
+Hence we notice that in practice we excessively underestimate the risk , and the three risks defined above are equivalent only if $q \simeq 0$.
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{Decomposition of the correlation matrix}
+
+Let $(\lambda_k , U_k )$ be the eigen values and eigen vectors of $C$ with $\lambda_1 \geq \lambda_2 \geq ... \geq \lambda_N $ we have:
+\[ C^{-1} = P \begin{pmatrix}
+   \lambda_{1}^{-1}  &   0 & \cdots &   0 \\
+  0 & \lambda_{2}^{-1} & \cdots &   0 \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+    0 &   0 & \cdots & \lambda_{N}^{-1} 
+ \end{pmatrix} P^{t} \mbox{     with  } P=(P^{k}) \mbox{ and } P P^{t} = \mathbb{I}_N \]
+\[ 
+\Longrightarrow C_{i,j}^{-1} = \sum\limits_{k} P_{i}^{k}  \lambda_{k}^{-1} P_{j}^{k} 
+\]
+\[\Longrightarrow x_i \propto \sum\limits_{j,k}   \lambda_{k}^{-1} P_{i}^{k}  P_{j}^{k} a_j = a_i + \sum\limits_{j,k} (\lambda_{k}^{-1}-1) P_{i}^{k} P_{j}^{k} a_j
+\]
+The first term correspondsto an investment in the asset $i$ proportional to the expectation of the normalized return (normalized by $\sigma_i $ ). For the second term, the small eigen values plays an important role since $  \lambda_{k}^{-1} $ is big.
+\newline 
+Hence the problem that we might face is that the noise on the estimation of these eigen values could be of the same order of their value, if we rely only on $E$. Therefore, the eigen value $ \hat{ \lambda_{k}}^{-1} $ is completely scrambled by the noise.
+\newline
+In fact, the distribution of the eigen values that we obtain from $E$ has typically this form (as we presented in section [ref] for CAC40 and DAX30):
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/EVCAC.png} 
+    \caption{CAC 40, we omitted the first eigenvalue $\approx 20$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/EVDAX.png} 
+    \caption{DAX30, we omitted the first eigenvalue $\approx 15$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+\caption{Sorted Eigenvalues of CAC40 and DAX30 correlation matrices }
+  \label{fig12} 
+\end{figure}
+The  large eigen values are indeed significant while small one are due probably to noise.
+\newline
+Hence, given that: $E =  \sum\limits_{k=1}^{N}  \tilde{ \lambda}_{k} \tilde{P}_{i}^{k} (\tilde{P}_{j}^{k})^{t}$
+\newline
+We want to apply the following procedure on the eigen values and eigen vectors obtained from $E$.
+\[ \begin{cases}
+\lambda_{clean}^{k}=a \mbox{  for } k >k^{*} \\
+\lambda_{clean}^{k}= \tilde{ \lambda}_{k}  \mbox{  for } k \leq k^{*} 
+\end{cases} \]
+Hence: \[ \underbrace{\sum\limits_{k=1}^{k^{*} } \tilde{P}_{i}^{k} \tilde{ \lambda}_{k} \tilde{P}_{i}^{k} (\tilde{P}_{j}^{k})^{t} }_{\mbox{informative part}} + \overbrace{ a \mathbb{I}_N }^{\mbox{non-informative part}} \]
+We conserve large significative eigen values and we fix a constant for smaller ones. The value of the constant $a$ could be chosen such as for example the trace of the correlation matrix equals $N$. 
+\newline
+But how could we choose $k^{*}$?.
+
+\section{Random matrices theory}
+To fix   $k^{*}$, we will apply Marcenko-Pastur theorem:
+\begin{thm}[Marcenko-Pastur]
+Assuming $ N,T \longrightarrow + \infty$ such that $\dfrac{N}{T} = cste= q <1$
+\newline
+Assuming also that $C_N = \mathbb{I}_N $ we have:
+\newline
+almost surely the convergence of the empirical measure associated to the eigen values of $E$ (normalized by $\dfrac{1}{N}$) toward the Marcenko-Pastur law (M.P).
+\newline
+M.P law is characterized by the following density:
+\[ p(\lambda) = \dfrac{1}{2 \pi q} \dfrac{\sqrt{(\lambda^{+} - \lambda)(\lambda - \lambda^{-})}}{\lambda} \mbox{   with  }  \lambda^{-} \leq \lambda \leq \lambda^{+} \]
+with for $ q <1$:
+\[ \begin{cases}
+\lambda^{+}=(1+\sqrt{q})^2 \\
+\lambda^{-} =(1-\sqrt{q})^2 
+\end{cases} \]
+
+\end{thm}
+
+The distribution of M.P corresponds to the case where there is no  information in the theorical matrix $(C=\mathbb{I})$. We do not trust the eigen values inferior to $\lambda^{+}$. The cleaned correlation matrix will be written:
+\[ 
+E_{clean}=\sum\limits_{k=1}^{k^{*} }  \tilde{ \lambda}_{k} \tilde{P}_{i}^{k} (\tilde{P}_{j}^{k})^{t}\]  with $k^{*}$ the number of eigen values superior than $\lambda^{+}$ and 
+\[
+a N + \sum\limits_{k=1}^{k^{*} }  \tilde{ \lambda}_{k} =N 
+\]
+
+We notice that $E_{clean}$ is definite positive but is not for sure a correlation matrix since its trace is not always equal to $1$. If we insist on having a correlation matrix we can consider:
+\[E_{clean}=\sum\limits_{k=1}^{k^{*} }  \tilde{ \lambda}_{k} \tilde{P}_{i}^{k} (\tilde{P}_{j}^{k})^{t}  
++ diag(b_1 , ... , b_N ) \]
+with 
+\[ b_j = 1 - (\sum\limits_{k=1}^{k^{*} }  \tilde{ \lambda}_{k} \tilde{P}_{i}^{k} (\tilde{P}_{j}^{k})^{t})_{i<j} = 1 -  \sum\limits_{k=1}^{k^{*} }  \tilde{ \lambda}_{k}  \tilde{P}_{j,k}^{2}
+\]
+because : $ \sum\limits_{k=1}^{N}  \tilde{ \lambda}_{k}  \tilde{P}_{j,k}^{2}=1$
+%-------------------------------------------------------------------------------------------------------------------------	%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+		%--------------------------------------------------------------------------------------------------------------------------
+
+
+		\chapter{Comparing different optimization strategies}
+%--------------------------------------------------------------------------------------------------------------------------
+The aim of this chapter is to introduce a unique problem framework and to compare the whole range of optimization techniques developed in the previous chapters, when applied to a large scale problem (number of stocks $\approx 1000$), in terms of optimization performances, algorithms complexity (and hence the convergence rate), we will also try to define strategies combining different optimization approaches in order to obtain best results in short time. 
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{Optimization problem }
+In this section we recall a general framework for our optimization problem, where the objective function $f$ depends on an expected return $a$, a covariance matrix $V$, a transaction cost function $T$, and the weights x. 
+
+ \label{equation1}
+ \begin{equation} 
+(P) \ \ \begin{cases}
+\text{maximize } f(x,a,V,T) \\
+\text{wrt  } i/ \ \ L \leq Ax \leq U \\
+\ \ \ \ \  ii/ \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M_p \\
+\ \ \ \ \  iii/ \ \ \left |\sum_{i=1}^{i=N} x_i\right|\leq \Delta_p\\
+\ \ \ \ \  iv/ \ \ \sum_{i=1}^{i=N} \left|t_i\right| \leq  T_p  \mbox{   where  } t_i = x_i-x_i^{old}   \\  
+\ \ \ \ \  v/ \ \ \sum_{i=1}^{i=N} \left|x_i  \mathbb{I}_{x_i \in Sector_j}\right| \leq M_p^{s_j} \\
+\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq M_p^{curr_k} \\
+\ \ \ \ \  vii/ \ \  \left| \sum_{i=1}^{i=N}  x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq \Delta_p^{Curr_k} \\
+\ \ \ \ \  viii/ \ \ \left|x_i \right| \leq \Delta_i \\
+\ \ \ \ \  ix/ \ \ \left|t_i \right| \leq T_i \\
+\end{cases}
+\end{equation}
+
+
+
+
+%--------------------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------
+\section{Comparison of different approaches }
+The aim of this section is to compare the different caracteristics of the multiple problems stated above with the different applicable methods (Simplex, Interior Point Methods, Conic programming). The comparison will hold  for the same panel of data ($N=800$ stocks portfolio) on different axes starting by the number of variables included in the problem resolution, the complexity of the algorithms, the possibility of a hot start, efficiency of the optimization (return of the portfolio), and the time of execution.
+\newline
+We will present in the table below the different problems we will perform and compare:
+\begin{table}[H]
+\centering
+\scalebox{1}{
+\begin{tabular}{lc|c|c|c|}
+\cline{3-5}
+\multicolumn{1}{c}{}     &                                                                                       & Objective function: $f$                                                                                       & \multicolumn{2}{c|}{Optimization algorithms/Methods}                                                                            \\ \hline
+\multicolumn{1}{|c|}{P1} & \multirow{3}{*}{\begin{tabular}[c]{@{}c@{}}Linear \\ Programming\\ LP\end{tabular}}   & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ linear\end{tabular}                                     & Simplex                                                      & \begin{tabular}[c]{@{}c@{}}Interior Point \\ Method\end{tabular} \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|c|}{P2} &                                                                                       & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - T(x)$\\ ($T$ linear)\end{tabular}                                  & Simplex                                                      & \begin{tabular}[c]{@{}c@{}}Interior Point \\ Method\end{tabular} \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|l|}{P3} &                                                                                       & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ Quadratic\end{tabular}                                  & \multicolumn{2}{c|}{\begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular}}                                               \\ \hline
+\multicolumn{1}{|l|}{P4} & \multirow{3}{*}{\begin{tabular}[c]{@{}c@{}}Quadratic\\ Programming\\ QP\end{tabular}} & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ linear\end{tabular}                    & \begin{tabular}[c]{@{}c@{}}Conic\\  Programming\end{tabular} & \begin{tabular}[c]{@{}c@{}}Interior Point \\ Method\end{tabular} \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|l|}{P5} &                                                                                       & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ Quadratic\end{tabular}                 & \multicolumn{2}{c|}{\begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular}}                                               \\ \cline{1-1} \cline{3-5} 
+\multicolumn{1}{|l|}{P6} &                                                                                       & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx - T(x)$\\ ( $T$ second order polynom)\end{tabular} & \begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular} & \begin{tabular}[c]{@{}c@{}}Interior Point \\ Method\end{tabular} \\ \hline
+\end{tabular}}
+  \caption{The list of the optimization problems with their applying methods}
+\end{table}
+
+
+
+
+
+\subsubsection{Number of variables, complexity of the algorithms and the possibility of a hot start}
+In the table below we resume the  three caracteristics stated in the paragraph above:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc|c|l|c|c|l|l|l|l|c|c|}
+\cline{3-3} \cline{5-6} \cline{8-9} \cline{11-12}
+\multicolumn{1}{c}{}                       &                                                                                        & \cellcolor[HTML]{343434}{\color[HTML]{EFEFEF} Objective function: $f$}                                                          &  & \multicolumn{2}{c|}{\cellcolor[HTML]{343434}{\color[HTML]{EFEFEF} Number of variables}}                                                                                     &  & \multicolumn{2}{l|}{\cellcolor[HTML]{343434}{\color[HTML]{EFEFEF} Algorithm Complexity}}                                                                                                                              &  & \multicolumn{2}{c|}{\cellcolor[HTML]{343434}{\color[HTML]{EFEFEF} Use of Hot Start}}                                                                                        \\ \cline{1-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|c|}{}                     &                                                                                        &                                                                                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} Simplex} & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} \begin{tabular}[c]{@{}c@{}}Interior \\ Point \\ Method\end{tabular}} &  & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} Simplex}} & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} \begin{tabular}[c]{@{}c@{}}Interior \\ Point \\ Method\end{tabular}}} &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} Simplex} & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} \begin{tabular}[c]{@{}c@{}}Interior \\ Point \\ Method\end{tabular}} \\ \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|c|}{\multirow{-2}{*}{P1}} &                                                                                        & \multirow{-2}{*}{\begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ linear\end{tabular}}                                     &  & $5N+1$                                                 & $5N+1$                                                                                                             &  &                                                                             &                                                                                                                                         &  & Yes                                                    & No                                                                                                                 \\ \cline{1-1} \cline{3-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|c|}{}                     &                                                                                        &                                                                                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} Simplex} & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}                                                                 &  & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} Simplex}} & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}}                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} Simplex} & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}                                                                 \\ \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|c|}{\multirow{-2}{*}{P2}} &                                                                                        & \multirow{-2}{*}{\begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - T(x)$\\ ($T$ linear)\end{tabular}}                                  &  & $5N+1$                                                 & $5N+1$                                                                                                             &  &                                                                             &                                                                                                                                         &  & Yes                                                    & No                                                                                                                 \\ \cline{1-1} \cline{3-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{}                     &                                                                                        &                                                                                                                                 &  & \multicolumn{2}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} \begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular}}}                                            &  & \multicolumn{2}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} \begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular}}}                                                                                      &  & \multicolumn{2}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} \begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular}}}                                            \\ \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{\multirow{-2}{*}{P3}} & \multirow{-6}{*}{\begin{tabular}[c]{@{}c@{}}Linear \\ Programming\\ LP\end{tabular}}   & \multirow{-2}{*}{\begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ Quadratic\end{tabular}}                                  &  & \multicolumn{2}{c|}{$8N+3$}                                                                                                                                                &  & \multicolumn{2}{l|}{}                                                                                                                                                                                                 &  & \multicolumn{2}{c|}{No}                                                                                                                                                     \\ \cline{1-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{}                     &                                                                                        &                                                                                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}      & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}                                                                 &  & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}}      & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}}                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}      & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}                                                                 \\ \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{\multirow{-2}{*}{P4}} &                                                                                        & \multirow{-2}{*}{\begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ linear\end{tabular}}                    &  & $6N+3$                                                & $5N+1$                                                                                                             &  &                                                                             &                                                                                                                                         &  & No                                                     & No                                                                                                                 \\ \cline{1-1} \cline{3-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{}                     &                                                                                        &                                                                                                                                 &  & \multicolumn{2}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}}                                                                                                      &  & \multicolumn{2}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}}                                                                                                                                                &  & \multicolumn{2}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}}                                                                                                      \\ \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{\multirow{-2}{*}{P5}} &                                                                                        & \multirow{-2}{*}{\begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ Quadratic\end{tabular}}                 &  & \multicolumn{2}{c|}{$9N+5$}                                                                                                                                                &  & \multicolumn{2}{l|}{}                                                                                                                                                                                                 &  & \multicolumn{2}{c|}{No}                                                                                                                                                     \\ \cline{1-1} \cline{3-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{}                     &                                                                                        &                                                                                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}      & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}                                                                 &  & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}}      & \multicolumn{1}{c|}{\cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}}                                                                 &  & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} CP}      & \cellcolor[HTML]{00009B}{\color[HTML]{EFEFEF} ITM}                                                                 \\ \cline{5-6} \cline{8-9} \cline{11-12} 
+\multicolumn{1}{|l|}{\multirow{-2}{*}{P6}} & \multirow{-6}{*}{\begin{tabular}[c]{@{}c@{}}Quadratic\\ Programming\\ QP\end{tabular}} & \multirow{-2}{*}{\begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx - T(x)$\\ ( $T$ second order polynom)\end{tabular}} &  &                                        6N+3                & $5N+1$                                                                                                             &  &                                                                             &                                                                                                                                         &  & No                                                     & No                                                                                                                \\ \cline{1-3} \cline{5-6} \cline{8-9} \cline{11-12} 
+\end{tabular}
+ \caption{The list of the optimization problems with their main caracteristics}
+\end{table}
+
+
+
+\subsubsection{Algorithms execution time}
+In this section using R package 'microbenchmark' we compute the execution time of the different algorithms corresponding to the construction of  an optimized portfolio from scratch using one of the different methods presented above. By running each method 500 times we draw the following box plots (see figure below).
+\par
+We notice that ITM applied to QP problems is very slow, which is in line with what we have seen in the chapter 2. Indeed, since QP algorithms using ITM need to compute consecutively the Hessian matrix, it leads to heavy computations and many iterations, unlike second order cones programming.  
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/TIMEPERF.png} 
+  \caption{Comparison of execution time in milliseconds}
+  \label{fig1} 
+\end{figure}
+
+We notice that LP Simplex method is the method that requires less execution time, and we recall that this method which can benefit from warm starting, which reduces even more execution time depending on the step (if we assume that we do it tick by tick) and keeping the same estimated return and covariance matrix inputs we obtain the following time performances:
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/P11SIMPLEXtime.png} 
+    \caption{P1 Simplex} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/P21SIMPLEXtime.png} 
+    \caption{ P2 Simplex} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+  \caption{LP Simplex warm starting}
+\end{figure}
+
+Another interesting property, is to compare how the time performances behave when we introduce at each step a centered gaussian noise $\epsilon_{i} \sim \mathcal{N}(0,\sigma_{i}=10^{-i}), \ \ i \in [0,6]$ in the estimated return input, such as:
+\[ \mbox{return at step i}=a+\epsilon_{i} \]
+by varying the volatility of the noise we obtain the following graphs, where we notice that there is no improvement in time performances, and that it takes more time when the intensity of the gaussian noise is bigger than the estimated return $a$ vector.
+
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.7\linewidth]{img/P11epsilon.png} 
+    \caption{P1 Simplex} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.7\linewidth]{img/P21epsilon.png} 
+    \caption{ P2 Simplex} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+  \caption{LP Simplex warm starting with gaussian noise $\epsilon_{i} \sim \mathcal{N}(0,\sigma_{i}=10^{-i})$  }
+\end{figure}
+
+
+\subsubsection{Optimization efficiency}
+We apply the optimization problems defined above to a multi-currency (euro and sterling) portfolio of $N=800$ stocks, using the following numerical values:  $M.p= 20 \mbox{\$ million}, \delta_{i}= \mbox{\$ million}$.
+\newline
+The next step of our comparison would be on the efficiency of the optimization for each of the following problems.
+\begin{itemize}
+\item Problem 1: we maximize $f(x)=\mbox{return}$ w.r.t the constraints given in problem \ref{equation1}, and where $\mbox{return}=a^{t}$ this problem is then a LP problem, similar to P1 without transaction costs, and we choose the simplex algorithm given its better time performances compared to the interior point method.
+\item Problem 2: we maximize $f(x)=\mbox{return}- \mbox{risk}$, where $\mbox{risk}=\lambda x^{t} V x$, this problem is then similar to P4, we choose given the time performances treated above, the conic formulation using the interior point algorithm.
+\item Problem 3: we maximize $f(x)=\mbox{return}- \mbox{risk}-\mbox{market impact (transaction costs)}$, where the market impact is as introduced in the chapter \ref{TC}, as in problem 2 we use a conic formulation.
+\end{itemize}
+First of all, we start by finding the risk aversion parameter $\lambda$ that satisfies the best compromise between return and risk. We determine the appropriate $\lambda$ graphically by plotting the optimized return and risk for different risk aversion parameters.
+\begin{figure}[H] 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.6\linewidth]{img/returnP3lambda.png} 
+    \caption{optimized return for different risk aversion parameters $\lambda$} 
+    \label{fig7:a} 
+    \vspace{0.1ex}
+  \end{subfigure}%% 
+  \begin{subfigure}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.6\linewidth]{img/riskP3lambda.png} 
+    \caption{optimized risk for different risk aversion parameters $\lambda$} 
+    \label{fig7:b} 
+    \vspace{0.1ex}
+  \end{subfigure} 
+  \caption{optimized return and risk for different risk aversion parameters $\lambda$ }
+\end{figure}
+We notice that the best compromise for the risk aversion parameter is $\lambda \in [10^{2},10^{3}]$.
+\newline
+Now we will compare the return and risk obtained by each of the problems defined above:
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=1\linewidth]{img/P1P2P3ret.png} 
+  \caption{Comparison of the optimization performances of the different problems}
+  \label{fig1} 
+\end{figure}
+
+We notice the high dependance on the type of risk profile we choose, which tends for high risk aversion factor to smooth the returns and risk (cf. below) hence a value in the interval $\lambda \in [10^{2},10^{3}]$ seems to be a good compromise.
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=1,height=0.6\linewidth]{img/P1P2P3ris.png} 
+  \caption{Comparison of the optimization performances of the different problems}
+  \label{fig1} 
+\end{figure}
+
+We notice that problem 3 underperforms both problem 1 and 2, which is logically what you expected since our objective function in problem 3 is more constrained than in problem 1 and 2.
+
+
+\section{Comparison between \$ and weight formulations}
+The aim of this part is to prove that both optimization problems on stock weights and dollar stock values are equivalent.
+\newline
+In the previous optimization problem, our optimized vector x represented a weight related to the maximum portfolio $M_{p}$. We will now try to analyse the optimization problem solutions when we consider the values of stocks in \$ instead of the weights.
+\newline
+Let's consider the following optimization problem where $x^{\$} $ is the value in dollar for each stock:
+
+\[ \begin{cases}
+\text{maximize } a^{t} x^{\$} - \lambda^{\$} x^{\$ t} V{x}^{\$}  \\
+\text{wrt  } i/ \ \ L^{\$} \leq A x^{\$} \leq U^{\$} 
+\end{cases} \]
+
+One can define U and V and x such as $L^{\$}= M_{p}L$, $U^{\$}=M_{p}U$ and $x=\dfrac{x^{\$}}{M_{p}}$ the optimization problem is then :
+
+\[ \begin{cases}
+\text{maximize } a^{t} x - \lambda^{\$} M_{p} x^{t}Vx  \\
+\text{wrt  } i/ \ \ L \leq Ax \leq U 
+\end{cases} \]
+
+$L$ , $U$ and x are exactly the lower and upper bounds that we working with in the previous problem .
+\newline
+We can finally conclude that both problems are equivalent but for different risk aversion factors : $\lambda^{\$}M_{p}=\lambda$. Since the risk aversion factor is a parameter that we caliber, we can assume that both problems are equivalent.
+We can verify this by implementing both problems : 
+
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=1\linewidth]{img/DOLRETURN.png} 
+  \caption{Comparison of the optimization performances of weight vs cash optimization problems}
+  \label{fig1} 
+\end{figure}
+
+We might have the concern of comparing the difference between the optimizer execution time for both equivalent problems given that they include different scalings.
+
+\begin{figure}[H] 
+    \centering
+    \includegraphics[width=	0.5\linewidth]{img/TIMEPERF$Woptim2.png} 
+  \caption{time performances of weight vs cash optimization problems}
+  \label{fig1} 
+\end{figure}
+
+
+		\chapter*{Conclusion}
+
+\indent We found this seminar very interesting as it presents a real trading problematic: portfolio optimization and trading costs.
+\par
+Integrating trading costs in its different formulations, and adding nonlinear constraints as we have seen alters the problem's convexity, and therefore adding new variables and using the conic formulation seems inevitable to get back this convexity, but in this case optimization algorithm become greedy in term of time.
+\par
+We have also seen that using the discontinuous formulation of trading costs makes the algorithm very slow in return of almost identical solutions as for the continuous formulation.
+\par
+As the algorithm execution time is a very important aspect for the trader, we have tested two softwares on R, the Rmosek package provided by Mosek and also NAG package provided by The Numerical Algorithms Group. We found that for complex optimization problems the Mosek package presents more options that make the formulation very simple and faster. Introducing a hot start solution seems also to be very helpful for reducing the execution time.
+\par
+Regarding the optimization strategies used we can conclude that depending on the market and the trader risk aversion, one can use either linear problem by disregarding the risk, and use the solution as a hot starts for next linear optimization, or a quadratic optimization using the conic formulation by choosing a risk aversion factor that reflects the risk appetite, and more generally a conic formulation including transaction costs if high precision is required.
+
+
+		\appendix
+		\setcounter{chapter}{0} % on met le compteur a 2 comme ca, lorsque que la commande \chapter est appelee le compteur passera a 3
+	%--------------------------------------------------------------------------------------------------------------------------
 
 		%--------------------------------------------------------------------------------------------------------------------------
 
@@ -244,6 +1548,7 @@ where $A$ is our constraint matrix, and $L, U$ two vectors representing the boun
 This is also equivalent to the minimization of $-r$. 
 \end{prb}
 
+\label{problem3}
 \begin{prb}[Maximize Expected Return with Risk Aversion]
 \[\begin{cases}
 \text{maximize } \lambda.a^{t}x-x^{t}Vx  \\
@@ -317,7 +1622,7 @@ Here also the equivalence is treated exactly as the precedent one:
 L_1(x,\lambda)=x^{t}Vx+\lambda_1(a^{t}x-r)+\lambda_2(Ax-L)+\lambda_2^{'}(U-Ax) \\ 
 L_3(x,\gamma)=x^{t}Vx-\lambda.a^{t}x+\gamma_1(Ax-L)+\gamma_2(U-Ax)
 \end{cases} \] 
-Solving:\ $\nabla_xL(x,\lambda)=0$ for both problems we obtain the following equations:
+Solving:\ $\nabla_x L(x,\lambda)=0$ for both problems we obtain the following equations:
 \[ \begin{cases}
 Vx_1^*+\lambda_1.a+\lambda_2.Ae-\lambda_2^{'}.Ae=0  \\ 
 Vx_3^*-\lambda.a^{t}+\gamma_1.Ae-\gamma_2.Ae=0
@@ -359,482 +1664,185 @@ We notice that by replacing the minimization of $f$ by $f^2$ and the condition $
 		%--------------------------------------------------------------------------------------------------------------------------
 
 
-		\chapter{Practice of numerical optimization}
+		\chapter{Numerical optimization algorithms}\label{numerical optim}
 %--------------------------------------------------------------------------------------------------------------------------
 %--------------------------------------------------------------------------------------------------------------------------
 
-		\section{Numerical optimization algorithms}
-In this section we will describe some optimizatio algorithms that are used by most optimizers found in the market, and especially used by NAG and Mosek two optimizers that we will study in coming sections.
+In this section we will describe some optimization algorithms that are used by most optimizers found in the market, and especially used by NAG and Mosek two optimizers that we will study in coming sections.
+\newline
+Khachian proved in 1979 that a linear program (optimization problem with linear objective and constraints) could be solved in polynomial time, thus resolving a dozens year old conjecture. It is only after Karmarkar's works on interior point methos, in 1984, that polynomial algorithms became competitive with the method used until then, the simplex algorithm of Dantzig, which was shown in 1970 to be non-polynomial, by Klee and Minty.
+\newline
+The aim of these notes is to give a brief introduction to the simplex method. Still frequently used, and to primal-dual path-following methods. The latter will be stated in the framework of monotone linear complementarity: this allows the tratment of convex linear-quadratic problems by interior-point methods. 
 
 %--------------------------------------------------------------------------------------------------------------------------
-			\subsection{Simplex method}
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-			\subsection{Interior point methods}
-
+			\section{The Simplex Method}
+In this chapter we will assume the reader aware of some theoritical results on linearly constrained optimizaton with convex objective function. In the case of a linear or quadratic objective, the existence of an optimal solution whenever the value of problem is finite, as well as existence of a basic solution in the linear case. Lagragian duality theory is also assumed to be well known by the reader. In the linear case, existence of a strictly complementary solutions is obtained whenever the optimal value of the problem is finite. Finally, hereafter we present the simplex algorithm.
+\newline
+The classical method for solving linear problems is the so-called simplex method, which we now present. Despite the importance of interior-point algorithms, a study of the simplex method is useful for three reasons. First, this lethod is competitive in many cases, and gives a benchmark to assess the performances of other methods. Second, to compute an exact solution -which is on the boundary domain - interior-point methods need a so-called purification process, which is a variant of the simplex method. Finally, stating the simplex algorithm allows an illustration of various concepts intrinsically linked to linear problems themselves, and not to the techniques used for solving them, as in the case for the existence of basic points.
 
 %--------------------------------------------------------------------------------------------------------------------------
+				\subsubsection{Computing the Descent Direction}	
+Let us consider the following linear optimization problem:
+\[ \begin{cases}
+\min\limits_{x \in \mathbb{R}^n} c^{t} x \\
+Ax=b \\
+x \geq 0
+\end{cases}
+\]
+Let $\tilde{x}$ be a basic point (a point in the feasible set of the linear problem). Denote by:
+\[ B(\tilde{x}):=\{1 \leq i \leq n; \ \  \tilde{x_i} > 0 \} \]
+the set of non-active positively constraints; $B(\tilde{x})$ is called the basis. The set of columns of $A$ (where $A$ is the constraint matrix define above), indexed in a set $I$, will be denoted by $A_I$. Set 
+\[ B:=B(x): \  \  N:=\{1, ... , n\} \setminus B \]
+We assume $card(B)=p$. Without loss of generality, we can assume $B=\{1,...,p\}$. Partition $x \in \mathbb{R}^n$ and $A$ according to their indices and columns. so that:
+\[ x=(x_B,x_N); \ A=(A_B,A_N); \ Ax=A_B x_B + A_N x_N \]
+We call $A_B$ the basis matrix. Suppose $A_B$ invertible. Then from the relation $Ax=b$, we can extract $x_B$ as a function of $x_N$:
+\[ x_{B}(x_N):=A_{B}^{-1}(b-A_N x_N). \]
+To compute a descent direction, the constraints $x_B \geq 0$ which are not active as the current point $\tilde{x}$ can be ignored. Locally, our problem therefore writes (using $c^{t} x = c_{B}^{t} x_B +c_{N}^{t} x_N)$:
+  \[ \min\limits_{x_N} c_{B}^{t} A_{B}^{-t}(b - A_N x_N) + c_{N}^{t} x_N; \ \ x_N \geq 0, \]
+or equivalently
+\[ \min\limits_{x_N} (c_N - A_{N}^{t} A^{-t} c_B)^{t} x_N: \ \ x_N \geq 0 \]
+We call reduced cost the quantity $r:= c_N - A_{N}^{t} A_{B}^{-t} c_B$. Decomposing its expression so as to disclose the multiplier estimate $\lambda$, we obtain
+\[ A_{B}^{t} \lambda = - c_B; \ \ r=c_N+A_{N}^{t} \lambda \]
+Combining the above two equalities, we observe that 
+\[ c+A^{t} \lambda = s  \mbox{  where  } s:= \left( \begin{array}{cc} 0  \\ r  \end{array} \right),  \mbox{  and } x^{t} s = 0 \]
+In case $r \geq 0$, the optimality system is satisfied: $(x,\lambda,s)$ is therefore a solution of the primal-dual formulation. From the saddle point theorem [see....], x solves the linear problem. We can thus detect optimality. 
+\newline
+By contrast, if there exists $j$ such that $r_j < 0$. let $e^{j}$ be the $j^{th}$ basis vector, and let $d \in \mathbb{R}^n$ be given by 
+\[ d_N = e^j; \ \  d_B=-A_{B}^{-1} A_N d_N = - A_{B}^{-1} A_j \]
+Then
+\[ A d = 0; \ \ d_N \geq 0;  \ \ d^{t} c = d^{t} r = r_j < 0 \]
+and thus for small $\rho > 0$, the point $x(\rho):=x+ \rho d $ is feasible and $ c^{t} x(\rho) := c^{t} x + \rho c^{t} d < c^{t} x$. Since $x$ has $p$ nonzeero components, and since $d_N=e^j$, $x(\rho)$ has at most $p+1$ nonzero components. Consider the largest feasible step. If it is $+ \infty$, we deduce that the value of the LP problem is $ - \infty$ since $c^{t} d  < 0$. If this step is finite, it cancels one component (at least). A new basic point is thus obtained.
+
 %--------------------------------------------------------------------------------------------------------------------------
-\newpage
-		\section{Numerical optimization on CAC 40 and DAX 30 portfolios}
+	
+			\subsubsection{Stating the algorithm}
+Summing up the set of operations, we obtain the simplex algorithm:
+\begin{algorithm}[H]
+  \caption{Simplex Algorithm}
 
-In this section we will optimize two different portfolios CAC40 and DAX30 using both NAG and Mosek packages in R, using the following conventions:
-In a first step we will consider the formulation of problem 3 (Maximize Expected Return with Risk Aversion):
-\[\begin{cases}
-\text{minimize } \lambda x^{t}Vx-a^{t}x \\
-\text{subjected to } L \leq Ax \leq U .
-\end{cases} \] 
-as described in the section 2.  We minimize the risk using the given covariance matrix  $V$ over the last 30 days, and $r$ the yesterday daily close return of stocks under t
-i/ \text{ delta neutrality} \\he following constraints: 
-\[ \begin{cases} 
-ii/ -0.05 \leq x_i \leq 0.05
-\end{cases} \] 
+  \begin{algorithmic}
+    \State choose a basic point $x^{0}$; $k \leftarrow 0$,
+    \State REPEAT
+    \State Compute the multiplier, solving $A_{B}^{t} \lambda = - c_B$
+    \State Compute the reduced cost $r \leftarrow c_N + A_{B}^{t} \lambda$
+     \If{( $r \geq 0$)} 
+     \State stop: $x$ solves (LP)
+	\EndIf
+    \State  Direction of move $j$ such that $r_j < 0 , \ \ d_N \leftarrow e^j ; \ \ d_B \leftarrow -A_{B}^{-1} A_N d_N $
+    \If{ ( $d \geq 0$)}
+	\State stop: LP solution = $- \infty$
+    	\State Stepsize: $ i \leftarrow argmin\{ \dfrac{x_i}{|d_i|}; \ \ d_i < 0 \}$, and $ \rho \leftarrow  \dfrac{x_i}{|d_i|} $
+    \EndIf  
+    \State New point $x^{'} \leftarrow x+ \rho d, \ \ B \leftarrow (B \cup \{j\}) \setminus \{i\}; \ \ N \leftarrow (N \cup \{j\}) \setminus \{i\}$
+	\State $ k \leftarrow k + 1$
+  \end{algorithmic}
+\end{algorithm}
+	
 
 %--------------------------------------------------------------------------------------------------------------------------
+			\section{Interior point methods}\label{ITM}
+Interior point methods encompass a wide range of algortithms that solves different optimization problems (LP, QP, SDP, SOCP), in this section we will focus on giving some efficient ITM algorithms widely used in the industry.
 
-		\subsection{Numerical optimization using NAG package}
-We start by giving the following program code that used to perform the optimization with NAG. NAG optimizer is very easy to use, since it has for each optimization problem a proper function. In our case we use the e04nf function, however there many others that could be used without changing the results (as e04nc for example).
+\subsection{Primal Newton Barrier Method}
+In the primal Newton barrier (PNB) method, the inequality constraints $x \geq 0$ are incorporated in the objective function by adding a \textit{logarithmic barrier function}. The subproblem obtained has the form:
+\[ \begin{cases}
+ \min f_{\tau}(x) = c^{t} x - \tau \sum\limits_{i=1}^{n} ln(x_i) \\
+\mbox{subject to: } Ax=b
+\end{cases} \]
+where $\tau$ is a strictly positive scalar. The term $-\tau \sum_{i=1}^{n} ln(x_i)$ is called \textit{'barrier function'}. The main idea behind the PNB method, is if we solve the subproblem above for a series of values of $\tau$, a series of solutions are obtained that converge to the solution of the original LP problem as $\tau \Longrightarrow 0$. 
 
-\lstinputlisting[firstline=9, lastline=113]{CodeR_1.R}
+\subsubsection{Minimizers of subproblem}
+We assume that both primal and dual LP probems are strictictly feasible.
+\newline
+Let $\tau > 0$ be fixed and $x_0$ be a strictly feasible point for the LP problem.  At $x_0$ the objective function of the PNB problem, $f_{\tau}(x)$, is well defined. Hence, the above assumption implies that solutions of the primal exist and are bounded. Under these circumstances, it can be shown that for a fiven $\epsilon > 0$ the set:
+\[ \mathbb{S}_0 = \{ x: \  \ x \mbox{ is strictly feasible for LP problem; } f_{\tau}(x) \leq f_{\tau}(x_0)+\epsilon \} \]
+is compact for all  $\tau > 0$. This implies that $f_{\tau}(x)$  has a local minimizer $x_{\tau}^{*}$ at an interior point of  $\mathbb{S}_{0}$. We can compute the gradient and Hessian of  $ f_{\tau}(x)$ as 
+\[ \nabla  f_{\tau}(x) = c - \tau X^{-1}e   \]
+\[   \nabla^{2}  f_{\tau}(x)=  \tau X^{-2}  \]
+with $X=\mbox{diag} \{x_{1},...,x_{n}\}$ and $e= [1 \ 1 \ ... \ 1]^{t}$. Since  $ f_{\tau}(x)$ is convex. $x_{\tau}^{*}$ in $\mathbb{S}_0$ is a global minimizer of the the $PNB_{\tau}$ problem.
 
+\subsubsection{Computing a minimizer of the PNB problem}
+For a fixed $\tau > 0$, the PNB method starts with a strictly feasible point $x_0$ and proceeds iteratively to find points $x_k$ and 
+\[ x_{k+1} = x_{k} + \alpha_{k} d_{k} \]
+such that the search direction satisfies the equality 
+\[ A d_{k} = 0 \]
+The constraints ensure that if $x_k$ satisfies the equation $Ax=b$ the so $x_{k+1}$.
+\newline 
+To find a descent direction, a second-order approximation of the problem is employed using the gradient and Hessian of $ f_{\tau}(x)$, hence the problem becomes:
+\[ \begin{cases}
+\min \dfrac{1}{2} \tau d^{t}  X^{-2}  d +  d^{t} ( c - \tau X^{-1}e) \\
+\mbox{subject to: }  Ad =0 
+ \end{cases}
+\]
+For a strictly feasible $x_k$, $X^{-2}$ is positive definite. Hence the new problem is a convex programming problem whose solution $d_k$ satisfies KKT conditions 
+ \begin{align*}
+\tau  X^{-2}  d_{k} +  c - \tau X^{-1}e &= A^{t} \lambda \\
+A d_{k} &=0 
+\end{align*}
+
+ we obtain by developing the terms:
+\begin{align*}
+ d_{k}  &= x_{k} + \dfrac{1}{\tau }  X^{2} (A^{t} \lambda -c) \\
+\mbox{and } 
+A X^{2} A^{t} \lambda &=A( X^{2}c-\tau x_{k})
+\end{align*}
+We see that the search direction $d_k$ in the PNB method is determined by using the above equation with a $\lambda$ obtaind by solving the $p \times p$ symmetric positive-definite system $ X^{2} A^{t} \lambda$.
 \par
-We run this code to obtain the optimized weight for both CAC 40 and DAX 30 (cf. graphics below), for different $\lambda  \text{ ranging from } 10^{-5} \text{ to } 10^{7}$. 
+Having determined $d_k$, a line search along $d_k$ can be carried out to determine a scalar $\alpha_{k} > 0$ such that $x_{k} + \alpha d_{k}$ remains strictly feasible and $f_{\tau}(x_{k} + \alpha d_{k})$ is minimized with respect to the range $ 0 \leq \alpha \leq \overline{ \alpha}_{k}$ where $\alpha_{k}$ is the largest possible scalar for $x_{k} + \alpha d_{k}$ to be strictly feasible. If we let :
+\[ x_{k} = [x_{1} \ ... \ x_{n}]^{t}  \mbox{ and }  d_{k} = [d_{1} \ ... \ d_{n}]^{t} \]
+the strict feasibility of $x_{k} + \alpha d_{k}$ can be assured, i.e, $x_{i} + \alpha d_{i}> 0$ for $0 \leq i \leq n$, if $\alpha < x_{i} /(-d_{i})$ for all  $0 \leq i \leq n$. Hence point  $x_{k} + \alpha d_{k}$ will remain strictly feasible if $\alpha$ satisfies the condition:
+\[ \alpha < \min\limits_{i : \ d_{i}<0} [ \dfrac{x_{i}}{(-d_{i})} ] \]
+In practice, the upper bound of $\alpha$, namely,
+\[ \overline{\alpha}_{k} < \min\limits_{i: \ d_{i}<0} [\dfrac{x_{i}}{(-d_{i})} ] \]
+In practice, the upper bound of $\alpha$, namely,
+\[ \overline{\alpha}_{k} =0.99 \times \min\limits_{i: \ d_{i}<0} [\dfrac{x_{i}}{(-d_{i})} ] \]
+gives satisfactory results. At $x_k$, the line search for function $f_{\tau}(x_{k} + \alpha d_{k})$ is carried out to the closed interval $[0,\overline{\alpha}_{k} ]$. Since
+\[ \dfrac{d^{2} f_{\tau}(x_{k} + \alpha d_{k})}{d \alpha^{2}} = \tau \sum\limits_{i=1}^{n} \dfrac{d_{i}}{(x_{i} + \alpha d_{i})^{2} }  > 0 \]
+$f_{\tau}(x_{k} + \alpha d_{k})$ is strictly convex on $[0,\overline{\alpha}_{k} ]$ and has a unique minimum.
+The PNB algorithm can be summarized as follows.
 
+\begin{algorithm}[H]
+  \caption{PNB Algorithm for the standard LP problem}
+  \begin{algorithmic}
 
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC1.png} 
-    \caption{$\lambda=10^{-5}, 10^{-4}, 10^{-3}, 10^{-2}$} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC2.png} 
-    \caption{$\lambda=10^{-1}$} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\end{figure}
+    \State Choose a basic point $x^{0}$; A and c
+    \State Set $l=0$, initialize the barrier parameter such that $\tau_{0}> 0$, and input the outer-loop tolerance $\epsilon_{\mbox{outer}}$
+    \State Set $k=0$ and $x_{0}^{(l)}=x_{l}$, and input the inner-loop tolerance $\epsilon_{\mbox{inner}}$
+    \State REPEAT
+    \State Compute $d_{k}^{(l)}$ at $x_{k}^{(l)}$ with $\tau=\tau_{l}$ using  eq:
+\begin{align*}
+ d_{k}  &= x_{k} + \dfrac{1}{\tau }  X^{2} (A^{t} \lambda -c) \\
+\mbox{and } 
+A X^{2} A^{t} \lambda &=A( X^{2}c-\tau x_{k})
+\end{align*}
+    \State Compute $\overline{\alpha}_{k}$ using eq: 
+\[ \overline{\alpha}_{k} =0.99 \times \min\limits_{i: \ d_{i}<0} [\dfrac{x_{i}}{(-d_{i})} ] \]
+where $x_{k}=x_{k}^{(l)}$ and $d_{k}=d_{k}^{(l)}$
+    \State Use a line search to determine $\alpha_{k}^{(l)}$
+    \State Set $x_{k+1}^{(l)}=x_{k}^{(l)}+\alpha_{k}^{(l)} d_{k}^{(l)} $
+     \If{($ \|\alpha_{k}^{(l)} d_{k}^{(l)} \| < \epsilon_{\mbox{inner}}$)} 
+	\State set $x_{l+1}=x_{k+1}^{(l)}$
+		 \If{( $\|\  x_{l} -x_{l+1}\| < \epsilon_{\mbox{outer}}$)} 
+			\State output $x^{*}=x_{l+1}$, and stop
+		\Else 
+		\State Choose $\tau_{l+1}<\tau_{l}$ and set $l=l+1$
+		\EndIf
+	\Else 
+	\State Set $k=k+1$
+	\EndIf
+\end{algorithmic}
+\end{algorithm}
 
-\begin{figure}
-  \ContinuedFloat 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC3.png} 
-    \caption{$\lambda=1$} 
-    \label{fig7:c} 
-\vspace{0.1ex}
-  \end{subfigure}%%
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC4.png} 
-    \caption{$\lambda=10$} 
-    \label{fig7:d} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC5.png} 
-    \caption{$\lambda=10^{2}$} 
-    \label{fig7:e} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC6.png} 
-    \caption{$\lambda=10^{3}$} 
-    \label{fig7:f} 
-\vspace{0.1ex}
-  \end{subfigure}
- 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC7.png} 
-    \caption{$\lambda=10^{4}$} 
-    \label{fig7:g} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC8.png} 
-    \caption{$\lambda=10^{5}$} 
-    \label{fig7:h} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \caption{CAC40 optimized weights for different aversion risk factors $\lambda$}
-  \label{fig1} 
-\end{figure}
+  
 
+	%--------------------------------------------------------------------------------------------------------------------------
 
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX1.png} 
-    \caption{$\lambda=10^{-5}, 10^{-4}, 10^{-3}, 10^{-2}$} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX2.png} 
-    \caption{$\lambda=10^{-1}$} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX3.png} 
-    \caption{$\lambda=1$} 
-    \label{fig7:c} 
-\vspace{0.1ex}
-  \end{subfigure}%%
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX4.png} 
-    \caption{$\lambda=10$} 
-    \label{fig7:d} 
-\vspace{0.1ex}
-  \end{subfigure} 
+		%--------------------------------------------------------------------------------------------------------------------------
 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX5.png} 
-    \caption{$\lambda=10^{2}$} 
-    \label{fig7:e} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX6.png} 
-    \caption{$\lambda=10^{3}$} 
-    \label{fig7:f} 
-\vspace{0.1ex}
-  \end{subfigure}
-\end{figure}
+		
+\chapter{Numerical optimization on Test Portfolios}
 
-\begin{figure}[H]
-  \ContinuedFloat 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX7.png} 
-    \caption{$\lambda=10^{4}$} 
-    \label{fig7:g} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX8.png} 
-    \caption{$\lambda=10^{5}$} 
-    \label{fig7:h} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \caption{DAX30 optimized weights for different aversion risk factors $\lambda$}
-  \label{fig1} 
-\end{figure}
-
-In order to measure the effect of the risk aversion on the optimization performances (optimized return and risk) we analyse the following graphics for both CAC 40 and DAX 30. 
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC9.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CAC10.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{CAC40 optimization performances}
-  \label{fig3} 
-\end{figure}
-
-We notice that the optimal risk aversion parameter levels should in the interva: $[0.1,10]$ in order to avoid the cases  high portfolio return/high risk,  low portfolio return/risk.
-\newline
-Hence we notice the following relationship between the risk aversion parameter and the portfolio performances:
-\[ \begin{cases} 
-\lambda \rightarrow 0 \  \Longrightarrow return,risk \rightarrow  High  \\
- \lambda \rightarrow \infty \Longrightarrow return,risk \rightarrow 0
-\end{cases} \] 
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX9.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAX10.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{DAX30 optimization performances}
-  \label{fig4} 
-\end{figure}
-%--------------------------------------------------------------------------------------------------------------------------
-
-		\subsection{Numerical optimization using RMosek package}
-To perform the optimization with Mosek package we used the following program code . Mosek is less simple to use compared to NAG, but follows the same optimization pattern as NAG too (cf. section 2.1 we compare the programming methods used by both optimizers ..). .
-
-\lstinputlisting[firstline=1, lastline=47]{CodeR_2.R}
-
-Below the graphics obtained with Mosek, which are quite similar of those obtaine with NAG above.
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/retCACMosekNAG.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/rskCACMosekNAG.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{CAC40 optimization performances in Mosek}
-  \label{fig4} 
-\end{figure}
-
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/retDAXMosekNAG.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/rskDAXMosekNAG.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{DAX30 optimization performances in Mosek}
-  \label{fig4} 
-\end{figure}
-
-%--------------------------------------------------------------------------------------------------------------------------
-		\subsection{Comparison between NAG and Mosek Packages}
-In this section we will draw a simple comparison between NAG and Mosek principal features based on our modest experience dealing with both packages.
-\newline
-To make it simple the principal differences between these packages are listed below:
-\begin{itemize}
-\item Nag has a simple formulation of the problem at a first glance than Mosek, but needs a specification of the function depending on the optimization problem 
-\item Mosek optimizer is without any doubt faster than NAG (figure with performances of NAG and Mosek on different problems)
-\item Mosek handles integer programming and conic formulation
-\end{itemize}
-In brief based on the previous remarks, we will prefer hereafter in our project the use of Mosek than NAG.
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-
-
-	\section{Analysis of CAC40 and DAX30 correlations}
-
-In this section we draw the heat maps of both CAC40 and DAX30 stocks, using the following legend:
-	- Red = high decorralation ranging between $[-1,0]$
-	- Green = Correlation ranging between $[0,0.8]$
-	- Blue = High correlation ranging between $[0.8,1]$
-
-\begin{figure}[H] 
-    \centering
-    \includegraphics[width=	0.75\linewidth]{img/HMCAC.png} 
-    \vspace{0.1ex}
-    \caption{CAC40 correlation heat map} 
-   \label{fig7} 
-  \end{figure}%% 
-
-We notice that in both matrices stocks are very correlated
- \begin{figure}[H] 
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/HMDAX.png}  
-    \vspace{0.1ex}
-    \caption{DAX30 correlation heat map} 
-   \label{fig7} 
-  \end{figure}%% 
-
-Next we will investigate eigenvalues of both matrices to verify their definite positive caracter, the necessary condition for performing a convex optimization. We draw below a bar chart of both CAC40 and DAX30 correlation matrices eigenvalues.
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.6\linewidth]{img/EVCAC.png} 
-    \caption{CAC 40, we omitted the first eigenvalue $\approx 20$} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.6\linewidth]{img/EVDAX.png} 
-    \caption{DAX30, we omitted the first eigenvalue $\approx 15$} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{Sorted Eigenvalues of CAC40 and DAX30 correlation matrices }
-  \label{fig12} 
-\end{figure}
-
-We notice that both CAC40 and DAX30 are singular, this surprising fact is due to numerical approximation, since we have numerous eigenvalues wich are equal to $\pm 10^{-16}$. This surprising fact is however without any impact on the optimization on both NAG and Mosek since the interior point algorithm does not need to inverse the covariance matrix, and hence we are not sure of the optimality of the minimum point obtained with both NAG and Mosek.
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-
-	\section{CAC40 and DAX30 optimization using sector limitation constraints} \label{sector limitation constrain}
-In this section, using NAG optimizer (since Mosek optimizer gives almost the same results), we introduce a new constraint on the stocks' sectors. We use the MSCI GICS sector classification, that includes the following ten sectors: \textit{Energy, Materials, Industrials, Consumer Discretionary, Consumer Staples, Health Care, Financials, Information Technology, Telecommunications Services, Utilities}. Let's denote each sector by $S_i  \text{ for } 1\leq i \leq 10$ and each stock $ s_j \text{ for } 0\leq j \leq N \text{ where } N  \in \{30,40 \}$ depending on DAX30 or CAC40 optimization.
-Our new  constraints are:
-\[ \begin{cases} 
-i/ \text{ deltra neutrality} \\
-ii/ -0.05 \leq x_i \leq 0.05 \\
-iii/ \forall i \in [1,10] \ \ l_i \leq \sum_{j=1}^{j=N} \mathbb{I}_{s_j \in S_i} \leq u_i
-\end{cases} \] 
-In the following example we perform the NAG optimization  using a delta neutrality among each sector iii/ $l_i= u_i=0$, Hence global delta neutrality is useless. We obtain the following result:
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1\linewidth]{img/CAC15.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1\linewidth]{img/CAC16.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{CAC40 optimization performances with sector constraints}
-  \label{fig4} 
-\end{figure}
-
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1\linewidth]{img/DAX15.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1\linewidth]{img/DAX16.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{DAX30 optimization performances with sector constraints}
-  \label{fig4} 
-\end{figure}
-
-We notice generally that with a more restricting condition as delta neutrality among each sector, we obtain different results for both CAC40 and DAX30, especially in the window of $\lambda$s where occurs the shift from the two extreme situations (high risk, low return) to (low risk, high return). The difference is obvious in the case of DAX30 where for the same level of optimized risk the return is lower for the portfolio with delta neutrality constraint on sectors.
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\newpage	
-\section{CAC40 , DAX30 and Footsie optimization using book value and trading constraints} \label{CAC+DAX+Footsie}
-In this section, we will start by introducing a book value such as our new constraints become: 
-\[ \begin{cases} 
-i/ \text{ Currency deltra neutrality} \\
-ii/ -0.05 \leq x_i \leq 0.05 \\
-iii/ Euro Booksize = \sum_{i=1}^{i=N}  \left|x_i \mathbb{I}_{s_i \in \mbox{\euro}} \right| \leq M_1,  \ \ M_1=0.4M\\
-iii/ GBP Booksize= \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{s_i \in \pounds} \right| \leq M_2, \ \ M_2=0.6M\\
-iv/  \left|x_i-x_i^{old}\right| \leq \theta  M \\
-\end{cases} \] 
-
-This third constraint has an important role in limiting the amount of money at risk, but also the portfolio's with maximum weights (positive or negative). We choose for this optimisation a mximum Euro booksize of $0.4 M$ wich correspond to the proportion of Euro stocks in our portfolio, and  $0.6 M$ for GBP stocks.
-\newline
-In all previous optimazation problem we solved the problem like we are composing our portfolio for the first time, but once we have it the optimisation will depend on the previous composition and here come the importance of the fourth constraint which has an important role in limiting the costs of transaction and bid/ask spread as it limits the turnover on each stock.
-\newline
-we have tried optimizing the problem for different values of trading constraints factor $\theta$  between 0 and 1 ,The graphs below represents the results of this optimisation 
-
-\begin{figure}[H] 
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF10.png} 
-    \caption{$xold$}
-    \label{fig7:a} 
-    \vspace{0.1ex}
- \caption{CAC40+DAX30+Footsie100 old portfolio}
-  \label{fig1}
-\end{figure}
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF11.png} 
-    \caption{$\theta=10^{-5}$} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF12.png} 
-    \caption{ $\theta=10^{-4}$} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF13.png} 
-    \caption{$\theta=10^{-3}$} 
-    \label{fig7:c} 
-\vspace{0.1ex}
-  \end{subfigure}%%
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF14.png} 
-    \caption{$\theta=10^{-2}$} 
-    \label{fig7:d} 
-\vspace{0.1ex}
-  \end{subfigure}
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF15.png} 
-    \caption{$\theta=10^{-1}$} 
-    \label{fig7:e} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF16.png} 
-    \caption{$\theta=1$} 
-    \label{fig7:f} 
-\vspace{0.1ex}
-  \end{subfigure}
-  \caption{CAC40+DAX30+Footsie100 optimized weights for different trading constraint factors $theta$}
-  \label{fig1} 
-\end{figure}
-
-For very small values of $\theta$ we notice as expected that the weights are the same as for the old portfolio, but starts changing for values of $\theta$ between $10^{-4}$ and $10^{-2}$, and stops changing for values of $\theta$ higher than $10^{-2}$.
-This can be explained by the fact that when $\theta M$ is higher than 0.1 wich is the maximum that  $\left|x_i-x_i^{old}\right|$ can achieve considering the bounds on the stock weights 0.05 , then for values of $\theta \geq 0.005$ ($M=20$), the trading constraint has no meaning.
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\newpage
-\section{Numerical optimization on Test Portfolios}
-
-\subsection{General optimization framework on Test Portfolios}
+\section{General optimization framework on Test Portfolios}
 For now on, we will consider a portfolio of 5 stocks (denoted by: A,B,C,D,E). In order to test the optimization algorithm results, we will perform some simple tests, and analyse the optimizator output. We test the optimization performances for different noncorralated and highly correlated/decorrelated random returns, to treat the following cases:
 
 \[ \begin{cases} 
@@ -858,15 +1866,15 @@ The  covariance matrices considered, with assuming that all the five stocks have
 0.8 &0.8 & 0.8  & 0.8  & 1\\
  \end{array} \right) ;\] 
 \[V_3= \left( \begin{array}{ccccc}
-1    & -0.8 & -0.8 & -0.8  &-0.8  \\
--0.8  & 1    & -0.8  & -0.8   & -0.8 \\
--0.8 & -0.8  & 1    & -0.8      & -0.8  \\
--0.8 & -0.8  & -0.8    & 1     & -0.8 \\
--0.8 & -0.8 & -0.8  & -0.8  & 1\\
+1    & -0.15 & -0.15 & -0.15  &-0.15  \\
+-0.15  & 1    & -0.15  & -0.15   & -0.15 \\
+-0.15 & -0.15  & 1    & -0.15      & -0.15  \\
+-0.15 & -0.15  & -0.15   & 1     & -0.15 \\
+-0.15 & -0.15 & -0.15  & -0.15  & 1\\
  \end{array} \right) 
 \]  
 
-By computing the eigenvalues or using the Sylvester Theorem, we deduce that $V_1$ and $V_2$  are definite-positive while $V_3$ is not, however following a remark on CAC40 and DAX30 optimization which have a non positive definite covariance matrix. 
+By computing the eigenvalues or using the Sylvester Theorem, we deduce that $V_1$, $V_2$ and  $V_3$  are definite-positive. 
 
 The different cases of  intial return considered are:
 \[R_1= \left( \begin{array}{ccccc}
@@ -911,84 +1919,84 @@ Here we have chosen the weights to be between -0.05 and 0.05. If the constraints
 \begin{figure}[H] 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_1.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_1.png} 
     \caption{$\lambda=10^{-5}$} 
     \label{fig5:a} 
     \vspace{0.1ex}
   \end{subfigure}
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_2.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_2.png} 
     \caption{$\lambda=10^{-4}$} 
     \label{fig7:b} 
     \vspace{0.1ex}
   \end{subfigure} 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_3.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_3.png} 
     \caption{$\lambda=10^{-3}$} 
     \label{fig7:c} 
 \vspace{0.1ex}
   \end{subfigure}
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_4.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_4.png} 
     \caption{$\lambda=10^{-2}$} 
     \label{fig7:d} 
 \vspace{0.1ex}
   \end{subfigure} 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_5.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_5.png} 
     \caption{$\lambda=10^{-1}$} 
     \label{fig7:e} 
 \vspace{0.1ex}
   \end{subfigure} 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_6.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_6.png} 
     \caption{$\lambda=1$} 
     \label{fig7:f} 
 \vspace{0.1ex}
   \end{subfigure} 
  \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_7.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_7.png} 
     \caption{$\lambda=10$} 
     \label{fig7:g} 
     \vspace{0.1ex}
   \end{subfigure}
  \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_8.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_8.png} 
     \caption{$\lambda=10^2$} 
     \label{fig7:h} 
     \vspace{0.1ex}
   \end{subfigure}
  \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_9.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_9.png} 
     \caption{$\lambda=10^3$} 
     \label{fig7:h} 
     \vspace{0.1ex}
   \end{subfigure}
 \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_10.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_10.png} 
     \caption{$\lambda=10^4$} 
     \label{fig7:h} 
     \vspace{0.1ex}
   \end{subfigure}
 \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_11.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_11.png} 
     \caption{$\lambda=10^5$} 
     \label{fig7:h} 
     \vspace{0.1ex}
   \end{subfigure}
 \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1R1_12.png} 
+    \includegraphics[width=0.75\linewidth]{img/V1R1_12.png} 
     \caption{$\lambda=10^6,10^7$} 
     \label{fig7:h} 
     \vspace{0.1ex}
@@ -1138,7 +2146,7 @@ Here we have chosen the weights to be between -0.05 and 0.05. If the constraints
   \label{fig7} 
 \end{figure}
 
-\subsection{Qualitative explanation of Stocks' weights behaviour}
+\section{Qualitative explanation of Stocks' weights behaviour}
 We consider as the above subsection the same test portfolios and the same optimization problem, and we give the following explanations to the stocks' weights behaviour dependind on the covariance matrix $V_i$ and the return vector $R_i$.
 \newline
 When the stocks are non-correlated, the case of the covariance matrix $V_1$, the optimizer tries to put as much weight as possible in the stocks with high return compared to the others if there are any (Stock A case $R_1$), if not -stock returns are equivalent- it will short stocks with negative returns and buy the one with positive returns in a way that maximize the expected return under the constraint of delta neutrality.
@@ -1150,63 +2158,63 @@ Below the graphics of the optimized weights in the different cases $(V_i,R_i)$.
 \begin{figure}[H] 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1 R1.png} 
+    \includegraphics[width=0.6\linewidth]{img/V1_R1.png} 
     \caption{$(V_1,R_1) \ \ \lambda=10$} 
     \label{fig5:a} 
     \vspace{0.1ex}
   \end{subfigure}
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1 R2.png} 
+    \includegraphics[width=0.6\linewidth]{img/V1_R2.png} 
     \caption{$(V_1,R_2) \ \ \lambda=10$} 
     \label{fig7:b} 
     \vspace{0.1ex}
   \end{subfigure} 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V1 R3.png} 
+    \includegraphics[width=0.6\linewidth]{img/V1_R3.png} 
     \caption{$(V_1,R_3) \ \ \lambda=10$} 
     \label{fig7:c} 
 \vspace{0.1ex}
   \end{subfigure}
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V2 R1.png} 
+    \includegraphics[width=0.6\linewidth]{img/V2_R1.png} 
     \caption{$(V_2,R_1) \ \ \lambda=10$} 
     \label{fig7:d} 
 \vspace{0.1ex}
   \end{subfigure} 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V2 R2.png} 
+    \includegraphics[width=0.6\linewidth]{img/V2_R2.png} 
     \caption{$(V_2,R_2) \ \ \lambda=10$} 
     \label{fig7:e} 
 \vspace{0.1ex}
   \end{subfigure} 
   \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V2 R3.png} 
+    \includegraphics[width=0.6\linewidth]{img/V2_R3.png} 
     \caption{$(V_2,R_3) \ \ \lambda=10$} 
     \label{fig7:f} 
 \vspace{0.1ex}
   \end{subfigure} 
  \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V3 R1.png} 
+    \includegraphics[width=0.6\linewidth]{img/V3_R1.png} 
     \caption{$(V_3,R_1) \ \ \lambda=10$} 
     \label{fig7:g} 
     \vspace{0.1ex}
   \end{subfigure}
  \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V3 R2.png} 
+    \includegraphics[width=0.6\linewidth]{img/V3_R2.png} 
     \caption{$(V_3,R_2) \ \ \lambda=10$} 
     \label{fig7:h} 
     \vspace{0.1ex}
   \end{subfigure}
  \begin{subfigure}[b]{0.33\linewidth}
     \centering
-    \includegraphics[width=0.6\linewidth]{img/V3 R3.png} 
+    \includegraphics[width=0.6\linewidth]{img/V3_R3.png} 
     \caption{$(V_3,R_3) \ \ \lambda=10$} 
     \label{fig7:h} 
     \vspace{0.1ex}
@@ -1215,412 +2223,12 @@ Below the graphics of the optimized weights in the different cases $(V_i,R_i)$.
   \label{fig7} 
 \end{figure}
 
-\section{How to choose the optimal risk aversion parameter}
-		%--------------------------------------------------------------------------------------------------------------------------
+%----------------------------------------------------------------------------
 
-		%--------------------------------------------------------------------------------------------------------------------------
-
-		%--------------------------------------------------------------------------------------------------------------------------
-
-		%--------------------------------------------------------------------------------------------------------------------------
+\bibliography{report}
+\bibliographystyle{plain}
 
 
-		\chapter{Practice of numerical optimization with transaction costs and market impact}
-%--------------------------------------------------------------------------------------------------------------------------
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\section{Continuous transaction costs}
-The previous section of numerical optimization did not include transaction costs, in this section we no longer assume that transactions (buying or short selling a stock) are costless. 
-\newline
-The transaction cost denoted $T$, with respect to previous notations, can be modeled in different ways, for example we can assume a continuous cost: 
-\begin{equation}
-\begin{cases} 
-T(x_j)=c^{+} x_j, \ \ x_j\geq0 \\
-T(x_j)=c^{-} x_j, \ \ x_j\leq0  \\
-\end{cases} 
-\end{equation}
-where $b,c^{+},c^{-}\geq0$
-\begin{figure}[H] 
-\centering
-\begin{tikzpicture}
-  \draw[->] (-1,0) -- (1,0) node[right] {$x$};
-  \draw[->] (0,-1) -- (0,1) node[above] {$T(x)$};
-  \draw[scale=1,domain=0:1,smooth,variable=\x,green] plot ({\x},{\x});
-  \draw[scale=1,domain=0:1,smooth,variable=\x,red]  plot ({-\x},{\x});
-\end{tikzpicture} 
-\caption{Continuous Transaction cost function}
-  \label{fig10} 
-\end{figure}
-The related optimization problem formulation to this cost modeling could be presented in two different ways:
-\begin{itemize}
-  \item normal minimization 
- \label{equation1}
- \begin{equation} 
-\begin{cases}
-\text{minimize } \lambda x^{t}Vx-a^{t}x \\
-\text{wrt  } i/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  ii/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
-\ \ \ \ \  iii/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
-\ \ \ \ \  vi/ \ \ c^{+} x_j \leq y_j  \\
-\ \ \ \ \  v/ \ \ -c^{-} x_j  \leq y_j   \\
-\end{cases}
-\end{equation}
- \item minimizing objective function with transaction cost 
-\begin{equation}
- \begin{cases}
- \text{minimize } \lambda x^{t}Vx-a^{t}x -T(x)\\
-\text{wrt  } i/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  ii/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
-\ \ \ \ \  iii/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
-\end{cases}
-\end{equation}
-\end{itemize}
-Another formulation of continuous transaction costs is as follow: 
-\label{Eq Continuous Quad Cost}
-\begin{equation}
- \begin{cases} 
-T(x_j)=c^{+} x_j^2, \ \ x_j\geq0 \\
-T(x_j)=c^{-} x_j^2, \ \ x_j\leq0  \\
-\end{cases} 
-\end{equation}
-But this formulation has the downside of introducing quadratic constraints if we adopt the first optimization formulation, However in section \ref{CQOP} we will show how we can use conic quadratic programming to overcome this difficulty in a pretty elegant way.
-\newline
-Hereafter we apply an optimization with transaction costs as in the section \ref{CAC+DAX+Footsie}, our problem becomes : 
-\[ \begin{cases}
- \text{minimize } \lambda x^{t}Vx-a^{t}x -T(x_j)\\
-\text{wrt  } i/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \ ii/ Euro Booksize = \sum_{i=1}^{i=N}  \left|x_i \mathbb{I}_{s_i \in \mbox{\euro}} \right| \leq M_1  \\ 
-\ \ \ \ \ ii/ GBP Booksize= \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{s_i \in \pounds} \right| \leq M_2 \\
-\ \ \ \ \  iii/  \sum_{i=1}^{i=N}  \left|x_i-x_i^{old}\right| \leq \theta  M , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
-\end{cases} \]
-
-In order to compare quadratic and linear we can not use the same cost constant $c_i$, so we calibrated the cost constant of the quadratic model on the one with linear costs using a simple regression .\newline
-
-Graphs below illustrate the the different result of the optimisation of both models.
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF29.png} 
-    \caption{Trading cost} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF30.png} 
-    \caption{optimized return} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\end{figure}
-
-\begin{figure}[H]
-  \ContinuedFloat 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF31.png} 
-    \caption{optimized risk} 
-    \label{fig7:c} 
-\vspace{0.1ex}
-  \end{subfigure}%%
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/CDF32.png} 
-    \caption{objective function} 
-    \label{fig7:d} 
-\vspace{0.1ex}
-  \end{subfigure} 
-\caption{Linear and quadratic trading costs}
-\label{fig7}
-\end{figure}
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\section{Uncontinuous transaction costs}
-
-More realistically, we can assume a constant cost plus a linear cost:
-\begin{equation}
- \begin{cases} 
-T(x_j)=b+c^{+} x_j, \ \ x_j\geq0 \\
-T(x_j)=0,       \ \ \ \ \   \ \ \ \ \ \ x_j=0     \\
-T(x_j)=b-c^{-} x_j, \ \ x_j\leq0 
-\end{cases} 
-\end{equation}
-where $b,c^{+},c^{-}\geq0$
-\begin{figure}[H] 
-\centering
-\begin{tikzpicture}
-  \draw[->] (-1,0) -- (1,0) node[right] {$x$};
-  \draw[->] (0,0) -- (0,1) node[above] {$T(x)$};
-  \draw[scale=1,domain=0.1:1,smooth,variable=\x,green] plot ({\x},{0.5+\x});  
-  \draw[scale=1,domain=-1:-0.1,smooth,variable=\x,red]  plot ({\x},{0.5-\x});
-\end{tikzpicture} 
-\caption{Uncontinuous Transaction cost function}
-  \label{fig10} 
-\end{figure}
-This latter model, having the merit of being more realistic, leads to an integer programming like formulation as below:
-\begin{equation}
- \begin{cases}
-\text{minimize } \lambda x^{t}Vx-a^{t}x \\
-\text{wrt  } i/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  ii/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
-\ \ \ \ \  iii/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
-\ \ \ \ \  vi/ \ \ bz_j+c^{+} (x_j-x_j^{old}) \leq y_j  \\
-\ \ \ \ \  v/ \ \ bz_j-c^{-} (x_j-x_j^{old})  \leq y_j   \\
-\ \ \ \ \  vi/ \ \ z_j l_j \leq (x_j-x_j^{old}) \leq z_j u_j \\
-\ \ \ \ \  vii/ \ \  z_j \in \{0,1\}
-\end{cases} 
-\end{equation}
-In our case the $i/$ condition could be replaced with the delta neutrality constraint for each sector GICS, introduced in section \ref{sector limitation constrain}:
-\[ i^{*}/ \ \ \forall i \in [1,10] \ \  \sum_{j=1}^{j=N} \mathbb{I}_{s_j \in S_i} =0 \] 
-
-
-
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\section{Comparison between continuous and uncontinuous linear transaction costs}
-
-In this section we will solve and compare these both problems applied to DAX30 using Mosek, with this numerical values: $b=0.2, \ \ c^{+}=c^{-}=0.1$.
-Ignoring the conditions of trading constraints and considering only global delta neutrality for $i/$ we obtain the following results:
-
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1\linewidth]{img/DAXTC1.png} 
-    \caption{optimized return for different risk aversion parameters} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1\linewidth]{img/DAXTC2.png} 
-    \caption{optimized risk for different risk aversion parameters} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-\caption{DAX30 optimization performances with transaction cost constraint}
-  \label{fig10} 
-\end{figure}
-
-
-Performing the optimization problem with integer variables seems very cost saving since different weights are set to $0$ in order to satisfy the conditions $v/$ and $vi/$ (see figure below), however the only issue of integer programming is that being an NP-Hard problem, the computation time is not polynomial and hence could last few minutes as it was the case for the DAX30 and might not find a solution as it was the case for the CAC40. The challenge of choosing this technic is to take the best computable optimization formulation, and to choose genuinely a hot start point to converge quickly, an idea of choosing a warm start point in our case is to take the linear transaction cost formulation solution.  
-		
-\begin{figure}[H] 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCD1.png} 
-    \caption{DAX30 discontinuous cost $\lambda=10$} 
-    \label{fig7:a} 
-    \vspace{0.1ex}
-  \end{subfigure}%% 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCC1.png} 
-    \caption{ continuous cost $\lambda=10$} 
-    \label{fig7:b} 
-    \vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCD2.png} 
-    \caption{discontinuous cost $\lambda=10^2$} 
-    \label{fig7:c} 
-\vspace{0.1ex}
-  \end{subfigure}%%
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCC2.png} 
-    \caption{continuous cost $\lambda=10^2$} 
-    \label{fig7:d} 
-\vspace{0.1ex}
-  \end{subfigure} 
-
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCD3.png} 
-    \caption{discontinuous cost $\lambda=10^3$} 
-    \label{fig7:e} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCC3.png} 
-    \caption{ continuous cost $\lambda=10^3$} 
-    \label{fig7:f} 
-\vspace{0.1ex}
-  \end{subfigure}
-\end{figure}
-
-\begin{figure}[H]
-  \ContinuedFloat 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCD4.png} 
-    \caption{discontinuous cost $\lambda=10^4$} 
-    \label{fig7:e} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCC4.png} 
-    \caption{ continuous cost $\lambda=10^4$} 
-    \label{fig7:f} 
-\vspace{0.1ex}
-  \end{subfigure}
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCD5.png} 
-    \caption{discontinuous cost $\lambda=10^5$} 
-    \label{fig7:g} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \begin{subfigure}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=0.75\linewidth]{img/DAXTCC5.png} 
-    \caption{ continuous cost $\lambda=10^5$} 
-    \label{fig7:h} 
-\vspace{0.1ex}
-  \end{subfigure} 
-  \caption{Comparison of optimized weights for different aversion risk factors for both linear and discontinuous transaction cost modeling}
-  \label{fig1} 
-\end{figure}
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\section{Conic quadratic programming} \label{CQOP}
-
-In this section we will revisit and use the equivalence between markowitz maximization of return with risk aversion and the conic quadratic formulation as shown in \ref{Markowitz Theory}.
-\newline
-The conic technics will not developed in the following subsections, refer to the appendix [...] for the details. 
-%--------------------------------------------------------------------------------------------------------------------------
-		\subsection{Markowitz optimization using Conic Quadratic Optimization}
-
-Using the problem (\ref{Problem Conic}) formulation, we rewrite our problem as a conic quadratic one by introducing new optimization variables and the cholesky decomposition $F$ of our covariance matrix $V$ we can state our problem (\ref{equation1})  as a conic quadratic one:
- \begin{equation}  
-\begin{cases}
-\text{minimize } \lambda v -a^{t}x \\
-\text{wrt  } i/ \ \ Fx-t=0 \mbox{ and } x^t V x \leq v \\
-\ \ \ \ \  ii/ \ \ w=1  \\
-\ \ \ \ \  iii/ \ \ \|t\|^2 \leq 2vw  \ \ v,w \geq 0 \\
-\ \ \ \ \  iv/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  v/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
-\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
-\ \ \ \ \  vii/ \ \ c^{+} x_j \leq y_j  \\
-\ \ \ \ \  viii/ \ \ -c^{-} x_j  \leq y_j   \\
-\end{cases}
-\end{equation}
-		
-
-%--------------------------------------------------------------------------------------------------------------------------
-		\subsection{Quadratic transaction costs}
-An advantage of the very useful conic formulation relies in the fact that we can introduce quadratic constraints as in equation \ref{Eq Continuous Quad Cost}, and other complicated non-linear functions in the form $x^{\frac{p}{q}}$ and $x^{-\frac{p}{q}}$ with $\frac{p}{q} \geq 1$ as we will see later.
-\newline
-Adopting the same conventions as in the previous paragraph our new problem with quadratic transaction costs becomes after conic transformations:
-\begin{equation}  
-\begin{cases}
-\text{minimize } \lambda v -a^{t}x \\
-\text{wrt  } i/ \ \ Fx-t=0 \mbox{ and } x^t V x \leq v \\
-\ \ \ \ \  ii/ \ \ w=1  \\
-\ \ \ \ \  iii/ \ \ \|t\|^2 \leq 2vw  \ \ v,w \geq 0 \\
-\ \ \ \ \  iv/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  v/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
-\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\sum_{j=1}^{j=N} \frac{2 u_j}{M}  ] \\
-\ \ \ \ \  vii/ \ \ -z_i \leq x_i \leq z_i \\
-\ \ \ \ \  viii/ \ \ z_{i}^{2} \leq 2 s_i y_i   \mbox{ and } s_i, y_i \geq 0 \\
-\ \ \ \ \  ix/  \ \ z_{i}^{2} \leq 2 r_i y_i   \mbox{ and } r_i, y_i \geq 0 \\
-\ \ \ \ \  x/  \ \ s_i = \dfrac{1}{c^{+}}   \mbox{ and } r_i = \dfrac{1}{c^{-}}  \\
-\end{cases}
-\end{equation}
-
-
-%--------------------------------------------------------------------------------------------------------------------------
-		\subsection{Market Impact}
-The previous problem formulations did not include market impacts of each transaction, they assumed that trading does not affect the market price. A more realistic model of the market impact cost (of a single asset) has the form: 
-\begin{equation}
-  commission + \dfrac{bid}{ask}-spread+\zeta \sqrt{\dfrac{trade \ volume}{daily \ volume}}
-\end{equation}
-The last term is the market impact cost, and captures that the price of an asset increases or decreases if you buy or sell large quantities, respectively, it can be approximated as
-\begin{equation}
- \zeta_i \sqrt{\dfrac{(trade \ volume)_i}{(daily \ volume)_i}}=m_i \sqrt{|x_i|} 
-\end{equation}
-where the parameters $ \zeta_i $ and $m_i$ should be estimated for each stock. Hence we obtain a constraint as follow:
-\begin{equation}
- m_i \sqrt{|x_i|} *x_i = m_i |x_i|^{\frac{3}{2}} \leq y_i
-\end{equation}
-\newline
-Hence as we did before we can operate a conic transformation using the market impact cost, as follow, we deliberately did not introduce transaction costs to simplify the representation of our problem: 
-\begin{equation}  
-\begin{cases}
-\text{minimize } \lambda v -a^{t}x \\
-\text{wrt  } i/ \ \ Fx-t=0 \mbox{ and } x^t V x \leq v \\
-\ \ \ \ \  ii/ \ \ w=1  \\
-\ \ \ \ \  iii/ \ \ \|t\|^2 \leq 2vw  \ \ v,w \geq 0 \\
-\ \ \ \ \  iv/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  v/  \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M \\
-\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i-x_i^{old}\right| \leq  M \theta , \ \ \theta \in [0,\frac{2 u_j}{M}  ] \\
-\ \ \ \ \  vii/ \ \ -z_i \leq x_i \leq z_i \\
-\ \ \ \ \  viii/ \ \ z_{i}^{2} \leq 2 s_i y_i   \ \  s_i, y_i \geq 0 \\
-\ \ \ \ \  ix/  \ \ w_{i}^{2} \leq 2 r_i q_i  \ \  r_i, y_i \geq 0 \\
-\ \ \ \ \  x/  \ \  z=q, \ s=w, \ r = \dfrac{1}{8} \\
-\end{cases}
-\end{equation}
-
-%--------------------------------------------------------------------------------------------------------------------------
-
-		%--------------------------------------------------------------------------------------------------------------------------
-
-		%--------------------------------------------------------------------------------------------------------------------------
-
-		%--------------------------------------------------------------------------------------------------------------------------
-
-
-		\chapter{Comparing different optimization strategies}
-%--------------------------------------------------------------------------------------------------------------------------
-The aim of this chapter is to introduce a unique problem framework and to compare the whole range of optimization techniques developed in the previous chapters, when applied to a large scale problem (number of stocks $\approx 1000$), in terms of optimization performances, algorithms complexity (and hence the convergence rate), we will also try to define strategies combining different optimization approaches in order to obtain best results in short time. 
-
-%--------------------------------------------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------------------------------------------
-\section{Optimization problem }
-In this section we recall a general framework for our optimization problem, where the objective function $f$ depends on an expected return $a$, a covariance matrix $V$, a transaction cost function $T$, and the weights x. 
-
- \label{equation1}
- \begin{equation} 
-(P) \ \ \begin{cases}
-\text{maximize } f(x,a,V,T) \\
-\text{wrt  } i/ \ \ L \leq Ax \leq U \\
-\ \ \ \ \  ii/ \ \ Booksize= \sum_{i=1}^{i=N}  \left|x_i\right| \leq M_p \\
-\ \ \ \ \  iii/ \ \ \left |\sum_{i=1}^{i=N} x_i\right|\leq \Delta_p\\
-\ \ \ \ \  iv/ \ \ \sum_{i=1}^{i=N} \left|t_i\right| \leq  T_p  \mbox{   where  } t_i = x_i-x_i^{old}   \\  
-\ \ \ \ \  v/ \ \ \sum_{i=1}^{i=N} \left|x_i  \mathbb{I}_{x_i \in Sector_j}\right| \leq M_p^{s_j} \\
-\ \ \ \ \  vi/ \ \ \sum_{i=1}^{i=N} \left|x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq M_p^{curr_k} \\
-\ \ \ \ \  vii/ \ \  \left| \sum_{i=1}^{i=N}  x_i \mathbb{I}_{x_i \in Curr_k}\right| \leq \Delta_p^{Curr_k} \\
-\ \ \ \ \  viii/ \ \ \left|x_i \right| \leq \Delta_i \\
-\ \ \ \ \  ix/ \ \ \left|t_i \right| \leq T_i \\
-\end{cases}
-\end{equation}
-
-We will present in the table below the different problems we will perform and compare:
-
-\begin{table}[H]
-\centering
-\begin{tabular}{lc|c|c|c|}
-\cline{3-5}
-\multicolumn{1}{c}{} &  & Objective function: $f$ & \multicolumn{2}{c|}{Optimization algorithms/Methods} \\ \hline
-\multicolumn{1}{|c|}{P1} & \multirow{3}{*}{\begin{tabular}[c]{@{}c@{}}Linear \\ Programming\\ LP\end{tabular}} & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ linear\end{tabular} & Simplex & \begin{tabular}[c]{@{}c@{}}Interior \\ Point \\ Method\end{tabular} \\ \cline{1-1} \cline{3-5} 
-\multicolumn{1}{|c|}{P2} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - T(x)$\\ ($T$ linear)\end{tabular} & Simplex & ITM \\ \cline{1-1} \cline{3-5} 
-\multicolumn{1}{|l|}{P3} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x $\\ wrt: $T$ Quadratic\end{tabular} & \begin{tabular}[c]{@{}c@{}}Conic \\ Programming\end{tabular} & ITM \\ \hline
-\multicolumn{1}{|l|}{P4} & \multirow{3}{*}{\begin{tabular}[c]{@{}c@{}}Quadratic\\ Programming\\ QP\end{tabular}} & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ linear\end{tabular} & CP & ITM \\ \cline{1-1} \cline{3-5} 
-\multicolumn{1}{|l|}{P5} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx$\\ wrt: $T$ Quadratic\end{tabular} & CP & ITM \\ \cline{1-1} \cline{3-5} 
-\multicolumn{1}{|l|}{P6} &  & \begin{tabular}[c]{@{}c@{}}$ f = a^{t} x - \lambda x^{t}Vx - T(x)$\\ ( $T$ second order polynom)\end{tabular} & CP & ITM \\ \hline
-\end{tabular}
-\caption{List of problems treated}
-  \label{tab1} 
-\end{table}
 
 \end{document} 
+
