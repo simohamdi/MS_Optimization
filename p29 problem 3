@@ -1,0 +1,368 @@
+
+
+#### Data processing ###
+setwd("~/MyFile")  #Dossier emplacement ? d?finir
+MSData=read.csv(file="MSData.csv", 
+                header=TRUE ,sep=";")
+stockname = unique(MSData$secID)
+Price_list = list()
+Price_list2 = list()
+toUSD_list=list()
+sector_list=list()
+Mdv_list=list()
+expreturn_series=NULL
+return_series=NULL
+toUSD=NULL
+Mdv=NULL
+sector_matrix=matrix(0,nrow=12,ncol=801)
+currency_matrix=matrix(0,nrow=2,ncol=801)
+
+for (i in stockname)
+{ 
+  index_stock = (MSData$secID == i)
+  Price_list[[i]] =   MSData$return[index_stock]
+  Price_list2[[i]] =   MSData$return4[index_stock]
+  toUSD_list[[i]]= MSData$toUSD[index_stock]
+  Mdv_list[[i]]= MSData$DailyVolume[index_stock]
+  if( length(Price_list[[i]]) == 19)
+  {
+    if(i<=801 && MSData$currency[i]=="EUR"){
+      currency_matrix[1,i]=1}
+    if(i<=801 && MSData$currency[i]=="GBP"){
+      currency_matrix[2,i]=1}
+    for(j in 1:11){
+      if(i<=801 && MSData$sector[i]==5*j){
+        sector_matrix[j,i]=1}
+    }
+    expreturn_series=cbind(expreturn_series,as.matrix(Price_list[[i]]))
+    return_series=cbind(return_series,as.matrix(Price_list2[[i]]))
+    toUSD=cbind(toUSD,as.matrix(toUSD_list[[i]]))
+    Mdv=cbind(Mdv,as.matrix(Mdv_list[[i]]))
+  }
+}
+
+currency_matrix=(currency_matrix[,-1])[,-1]
+sector_matrix=(sector_matrix[,-1])[,-1]
+RS=(return_series[,-1])[,-1]
+Mdv2=(Mdv[,-1])[,-1]
+B=cov(RS)
+C=cor(RS)
+
+
+
+########### Algo input #######
+
+
+RETURN3=NULL
+RISK3=NULL
+R55=matrix(0,ncol=2 , nrow=19)
+RETURN33=NULL
+RISK33=NULL
+for(i2 in -2:4){
+returns=RS                                                    ## matrix of returns 
+Sector=sector_matrix                                          ## Sector Matrix
+n=ncol(returns)                                               ## Stock number
+n_EUR=sum(currency_matrix[1,])                                ## nbre of EUR Stocks
+n_GBP=sum(currency_matrix[2,])                                ## nbre of GBP Stocks
+T_cost.l=matrix(0.0005,nrow=1,ncol=2*n)                       ## linear part of transaction costs
+T_cost.q=matrix(0,nrow=1,ncol=2*n)                            ## Quadratic part of transaction costs
+xiold=as.matrix(rep(0,n),nrow=n,ncol=1)                       ## current position
+lambda=10^2                                                   ## Risk aversion factor
+M.p=20*10^6*10^(i2)                                                  ## Book size limit
+M.sector=as.matrix(rep(M.p/12,nrow(sector_matrix))            ## Size limit by Sector
+                   ,nrow(sector_matrix),ncol=1)               
+M.cur=as.matrix(rep(M.p/2,2),nrow=2,ncol=1)                   ## Size limit by Currency  
+norm=M.p                                                   ## to normalize the problem
+m.i=10^4
+Delta=M.p/100                                                 ## Portfolio Delta limit        
+Delta_i=as.matrix(rep(m.i,n),nrow=n,ncol=1)                  ## Stock i Delta limit
+Delta_cur=as.matrix(rep(M.p/20,2),nrow=2,ncol=1)              ## currency Delta limit           
+t.p=0.4*M.p                                                   ## Book Turnover bound
+t.i=as.matrix(rep(M.p/100,n),nrow=n,ncol=1)                   ## Stock i turnover bound
+c1=0.01 
+Q=cov(RS)                                                     ## covariance matrix.
+eps=10^(-15)
+RR=chol(Q+diag(eps,n))
+list_lambda=seq(0,5,1)
+lgth.listlam=length(list_lambda)
+bp=0.01
+cost=bp*sqrt((M.p)/Mdv2)
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+bl_zi=as.matrix(rep(-Inf,n))
+bl_add=as.matrix(rbind(0.5,0,0.5,as.matrix(rep(0,n-3))))
+bl_zi2=as.matrix(rep(0,n))
+bl_yi2=as.matrix(rep(0,n))
+bl_si=as.matrix(rep(0,n))
+bl_vi=as.matrix(rep(0,n))
+bl_wi=as.matrix(rep(0,n))
+bl_ri=as.matrix(rep(1/8,n))
+
+
+
+bl_x5=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi,bl_zi,bl_add,bl_zi2,bl_yi2,bl_si,bl_vi,bl_wi,bl_ri)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+bu_zi=as.matrix(rep(Inf,n))
+bu_add=rbind(0.5,Inf,0.5,as.matrix(rep(Inf,n-3)))
+bu_zi2=as.matrix(rep(Inf,n))
+bu_yi2=as.matrix(rep(Inf,n))
+bu_si=as.matrix(rep(Inf,n))
+bu_vi=as.matrix(rep(Inf,n))
+bu_wi=as.matrix(rep(Inf,n))
+bu_ri=as.matrix(rep(1/8,n))
+
+
+bu_x5=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi,bu_zi,bu_add,bu_zi2,bu_yi2,bu_si,bu_vi,
+              bu_wi,bu_ri)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n)),
+                   diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n)) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0,
+                  as.matrix(rep(0,n)),as.matrix(rep(0,7*n))))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,7*n))))
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0,
+                     as.matrix(rep(0,n)),as.matrix(rep(0,7*n))) )
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0,as.matrix(rep(0,n)),
+                     as.matrix(rep(0,7*n))))
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0,as.matrix(rep(0,n)),
+                       as.matrix(rep(0,7*n))))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,7*n)))) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0,as.matrix(rep(0,n)),
+                  as.matrix(rep(0,7*n)))) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),Sector,Sector,
+                   matrix (rep(0, nrow(Sector)*2*n), nrow(Sector), 2*n),
+                   0,matrix (rep(0, nrow(Sector)*n), nrow(Sector), n), matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),matrix (rep(0, nrow(Sector)*n), nrow(Sector), n))
+
+# Cost constraints 
+#cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1,as.matrix(rep(0,n)), as.matrix(rep(0,7*n))))
+
+#Conic constraints
+
+cone_cst=cbind(RR,diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),-diag(1,n),diag(0,n),
+               diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+transac1=cbind(-diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),
+               diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+transac2=cbind(diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),
+               diag(1,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n))
+transac3=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),
+               diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(0,n),diag(0,n))
+transac4=cbind(diag(0,n),diag(0,n),diag(0,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)),diag(0,n),diag(0,n),
+               diag(0,n),diag(0,n),diag(1,n),diag(0,n),-diag(1,n),diag(0,n))
+
+
+
+
+# Constraint matrix
+a5= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,
+          Trading_constr,Delta_EUR,Delta_GBP,Sector_Size,cone_cst,transac1,transac2,transac3,transac4
+         )    ###constraints matrix bl_c < a%*%x < bu_c
+
+
+
+E15=rbind(6*n+2,6*n+3,as.matrix(seq(5*n+2,6*n+1,1)))
+
+
+cqo5=list()
+cqo5$sense= "min"                              ### We want to minmise qobj
+
+cqo5$A=Matrix(a5,byrow=TRUE,sparse=TRUE)        ### Constraints matrix
+
+cqo5$bx=rbind(blx=bl_x5,bux=bu_x5)               ### Variable bounds
+NUMCONES = 2*n+1
+cqo5$cones = matrix ( list (), nrow =2, ncol = NUMCONES )
+rownames ( cqo5$cones )= c("type","sub")
+cqo5$cones[ ,1] = list ("RQUAD", t(E15))
+i=0
+for (i in 1:n ) {
+  E25=matrix(0,ncol=1,nrow=3)
+  E25=rbind(8*n+1+i,9*n+1+i,7*n+1+i)
+  cqo5$cones[ ,i+1] = list ("RQUAD", t(E25))
+  E35=matrix(0,ncol=1,nrow=3)
+  E35=rbind(12*n+1+i,10*n+1+i,11*n+1+i)
+  cqo5$cones[ ,i+n+1] = list ("RQUAD", t(E35))
+}
+
+#j=0
+for(lambda in list_lambda){
+for(i in 1:19){
+  ###constraints bounds###
+  
+  #lower bounds
+  bl_c5=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,
+                -Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),as.matrix(rep(0,n)),as.matrix(rep(0,n)),
+                as.matrix(rep(0,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))
+  #upper bounds
+  bu_c5=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,
+                M.sector/norm,as.matrix(rep(0,n)),as.matrix(rep(Inf,n)),
+                as.matrix(rep(Inf,n)),as.matrix(rep(0,n)),as.matrix(rep(0,n))))
+  cqo5$bc=rbind(blc=bl_c5,buc=bu_c5)               ### Constraints bounds
+
+#R5=matrix(0,ncol=2 , nrow=lgth.listlam)
+
+### The linear part of the problem.
+f5<-t(-as.matrix(cbind(t(as.matrix(returns[20-i,])),matrix(0,nrow=1,ncol=4*n),0,matrix(0,nrow=1,ncol=n),
+                         matrix(0,nrow=1,ncol=1),
+                         matrix(-10^(lambda),nrow=1,ncol=1),matrix(0,nrow=1,ncol=2*n-2),t(as.matrix(-cost[20-i,])),
+                        matrix(0,nrow=1,ncol=4*n))))
+#20-i
+cqo5$c=f5
+r=mosek(cqo5)
+#plot(sort(r$sol$itr$xx[1:n],decreasing=TRUE),type="h",ylab= "Weight value",xlab= "Stock weights",las=1)
+#n1=8*n+2
+#n2=9*n+1
+X5=r$sol$itr$xx[1:n]
+#t(as.matrix(-cost[20-i,]))%*%X5
+#j=j+1
+#R5[j,1]=-t(f5[1:n])%*%X5
+#R5[j,2]=t(X5)%*%Q%*%X5
+R55[i,1]=-t(f5[1:n])%*%X5
+R55[i,2]=t(X5)%*%Q%*%X5
+xiold=as.matrix(X5,nrow=n)
+}
+mean.ret=mean(R55[,1])
+mean.ris=mean(R55[,2])
+RETURN3=c(RETURN3,R55[,1])
+RISK3=c(RISK3,R55[,2])
+RETURN33=c(RETURN33,mean.ret)
+RISK33=c(RISK33,mean.ris)
+}
+}
+R55[,1]
+R55[,2]
+
+ppp=19*lgth.listlam
+df=data.frame(problem=factor(rep(c("P1","P2","P3"),each=ppp)),
+              lambda=factor(rep(c("lambda=0","lambda=1","lambda=2","lambda=3","lambda=4","lambda=5","lambda=6"),each=19)),
+              time=1:19,
+              mes=factor(rep(c("optimized return"),each=ppp*3)),
+              series=c(RETURN1,RETURN2,RETURN3))     
+df2=data.frame(problem=factor(rep(c("P1","P2","P3"),each=ppp)),
+              lambda=factor(rep(c("lambda=0","lambda=1","lambda=2","lambda=3","lambda=4","lambda=5","lambda=6"),each=19)),
+              time=1:19,
+              mes=factor(rep(c("optimized risk "),each=ppp*3)),
+              series=c(RISK1,RISK2,RISK3))  
+
+df3=data.frame(problem=factor(rep(c("P1","P2","P3"),each=42)),
+               lambda=factor(rep(c("lambda=0","lambda=1","lambda=2","lambda=3","lambda=4","lambda=5"))),
+               trad=factor(rep(c("Trad=1","Trad=10","Trad=10^2","Trad=10^3","Trad=10^4","Trad=10^5","Trad=10^6"),
+                               each=6)),
+               x=0:6,
+               mes=factor(rep(c("optimized return "),each=6*3*7)),
+               series=c(RETURN11,RETURN22,RETURN33))
+
+df4=data.frame(problem=factor(rep(c("P1","P2","P3"),each=42)),
+               lambda=factor(rep(c("lambda=0","lambda=1","lambda=2","lambda=3","lambda=4","lambda=5"))),
+               trad=factor(rep(c("Trad=1","Trad=10","Trad=10^2","Trad=10^3","Trad=10^4","Trad=10^5","Trad=10^6"),
+                                    each=6)),
+               x=0:6,
+               mes=factor(rep(c("optimized risk "),each=6*3*7)),
+               series=c(RISK11,RISK22,RISK33))
+pd = position_dodge(.1)
+greturn=ggplot(df3,aes(x=trad,y=series,colour=problem))+geom_line(position=pd,aes(group=problem))+
+  geom_point(size=2,fill="white")+facet_grid(lambda~mes)
+grisk=ggplot(df4,aes(x=trad,y=series,colour=problem))+geom_line(linetype="dashed",size=.5)+
+  geom_point(size=2,fill="white")+facet_grid(lambda~mes)
+
+
+
+png("P1P2P3ret.png",    # create PNG for the heat map        
+    width = 45*300,        # 5 x 300 pixels
+    height = 45*300,
+    res =1800,            # 300 pixels per inch
+    pointsize = 9        # smaller font size
+)
+greturn
+dev.off() 
+
+
+png("P1P2P3ris.png",    # create PNG for the heat map        
+    width = 45*300,        # 5 x 300 pixels
+    height = 45*300,
+    res =1800,            # 300 pixels per inch
+    pointsize = 9        # smaller font size
+)
+grisk
+dev.off() 
+
+ggsave(filename = "P1P2P33.png", plot = last_plot(),
+       path = NULL, scale = 1, width = 3*par("din")[1], 
+       height = 5*par("din")[2], units = c("in", "cm", "mm"), dpi = 900, limitsize = TRUE)
+
+Jerrneg=Jerrneg + scale_x_continuous(limits = c(-5, 5))
+Jerrneg=Jerrneg + coord_cartesian(xlim = c(-5, 5))
+
+
+
+#Calibration lambda
+R5[,1]
+R5[,2]
+
+
+png("returnP3lambda.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R5[,1]*100,log="x",xlab=expression(paste("risk aversion factor", ~lambda) ),
+     ylab="optimized return",type="o",las=1,lwd=2,lty=3,col="blue")
+
+mtext(expression("x"~10^-2),adj=0,padj=-1, outer=FALSE) 
+dev.off() 
+
+png("riskP3lambda.png",    # create PNG for the heat map        
+    width = 5*300,        # 5 x 300 pixels
+    height = 5*300,
+    res = 300,            # 300 pixels per inch
+    pointsize = 9)        # smaller font size
+plot(10^(list_lambda),R5[,2]*10^4,log="x",xlab=expression("risk aversion factor" ~lambda ),
+     ylab="optimized risk",type="o",las=1,lwd=2,lty=3,col="blue")
+mtext(expression("x"~10^-4),adj=0,padj=-1,outer=FALSE)
+dev.off() 
+
+mic5=microbenchmark(mosek(cqo1),times=500L)
+boxplot(mic5)
+XXX=r$sol$itr$xx[1:n]
+R[1,1]=-t(f[1:n])%*%XXX
+R[2,1]=t(XXX)%*%Q%*%XXX
