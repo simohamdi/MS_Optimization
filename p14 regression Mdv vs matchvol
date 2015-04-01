@@ -1,0 +1,74 @@
+setwd("~/MyFile")  #Dossier emplacement ? d?finir
+
+MSData1=read.csv(file="MSData1.csv", 
+                header=TRUE ,sep=";")
+
+
+stockname = unique(MSData$secID)
+Price_list = list()
+Price_list2 = list()
+toUSD_list=list()
+sector_list=list()
+Mdv_list=list()
+Mdv2_list=list()
+expreturn_series=NULL
+return_series=NULL
+toUSD=NULL
+Mdv=NULL
+Mdv2=NULL
+sector_matrix=matrix(0,nrow=12,ncol=801)
+currency_matrix=matrix(0,nrow=2,ncol=801)
+
+for (i in stockname)
+{ 
+  index_stock = (MSData1$secID == i)
+  Price_list[[i]] =   MSData1$return[index_stock]
+  Price_list2[[i]] =   MSData1$return4[index_stock]
+  toUSD_list[[i]]= MSData1$toUSD[index_stock]
+  Mdv_list[[i]]= MSData1$DailyVolume[index_stock]
+  Mdv2_list[[i]]= MSData1$matched[index_stock]
+  if( length(Price_list[[i]]) == 19)
+  {
+    if(i<=801 && MSData1$currency[i]=="EUR"){
+      currency_matrix[1,i]=1}
+    if(i<=801 && MSData1$currency[i]=="GBP"){
+      currency_matrix[2,i]=1}
+    for(j in 1:11){
+      if(i<=801 && MSData1$sector[i]==5*j){
+        sector_matrix[j,i]=1}
+    }
+    expreturn_series=cbind(expreturn_series,as.matrix(Price_list[[i]]))
+    return_series=cbind(return_series,as.matrix(Price_list2[[i]]))
+    toUSD=cbind(toUSD,as.matrix(toUSD_list[[i]]))
+    Mdv=cbind(Mdv,as.matrix(Mdv_list[[i]]))
+    Mdv2=cbind(Mdv2,as.matrix(Mdv2_list[[i]]))
+  }
+}
+
+max(Mdv)
+min(Mdv)
+mean(Mdv)
+data=dataVol
+Matched_Volume=as.vector(cbind(as.matrix(Mdv2,ncol=1)))
+Median_daily_Volume=as.vector(cbind(as.matrix(Mdv,ncol=1)))
+dreg=data.frame(Matched_Volume=Matched_Volume,
+                MDV=Median_daily_Volume)
+reg <- ggplot(data = dreg, aes(x = Matched_Volume, y =  MDV)) +
+  geom_smooth(method = "lm", se=FALSE, color="black", formula = y ~ x) +
+  geom_point()
+reg
+lm_eqn = function(dreg){
+  m = lm(MDV ~ Matched_Volume, dreg);
+  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                   list(a = format(coef(m)[1], digits = 2), 
+                        b = format(coef(m)[2], digits = 2), 
+                        r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));                 
+}
+
+reg1 = reg + geom_text(aes(x = 10^2, y = 4*10^10, label = lm_eqn(dreg)), parse = TRUE)
+reg=lm(formula=Matched_Volume~Median_daily_Volume)
+summary(reg)
+0.2412*sqrt(var(Median_daily_Volume)/var(Matched_Volume))
+plot(datadVol,datamVol)
+abline(reg=reg)
