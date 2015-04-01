@@ -1,0 +1,191 @@
+
+RETURN1=NULL
+RISK1=NULL
+R11=matrix(0,ncol=2 , nrow=19)
+RETURN11=NULL
+RISK11=NULL
+for(i2 in -2:4){
+  returns=RS                                                    ## matrix of returns 
+  Sector=sector_matrix                                          ## Sector Matrix
+  n=ncol(returns)                                               ## Stock number
+  n_EUR=sum(currency_matrix[1,])                                ## nbre of EUR Stocks
+  n_GBP=sum(currency_matrix[2,])                                ## nbre of GBP Stocks
+  T_cost.l=matrix(0.0005,nrow=1,ncol=2*n)                       ## linear part of transaction costs
+  T_cost.q=matrix(0,nrow=1,ncol=2*n)                            ## Quadratic part of transaction costs
+  xiold=as.matrix(rep(0,n),nrow=n,ncol=1)                       ## current position
+  lambda=10^2                                                   ## Risk aversion factor
+  M.p=20*10^6*10^(i2)                                                  ## Book size limit
+  M.sector=as.matrix(rep(M.p/12,nrow(sector_matrix))            ## Size limit by Sector
+                     ,nrow(sector_matrix),ncol=1)               
+  M.cur=as.matrix(rep(M.p/2,2),nrow=2,ncol=1)                   ## Size limit by Currency  
+  norm=M.p                                                   ## to normalize the problem
+  m.i=10^4
+  Delta=M.p/100                                                 ## Portfolio Delta limit        
+  Delta_i=as.matrix(rep(m.i,n),nrow=n,ncol=1)                  ## Stock i Delta limit
+  Delta_cur=as.matrix(rep(M.p/20,2),nrow=2,ncol=1)              ## currency Delta limit           
+  t.p=0.4*M.p                                                   ## Book Turnover bound
+  t.i=as.matrix(rep(M.p/100,n),nrow=n,ncol=1)                   ## Stock i turnover bound
+  c1=0.01 
+  Q=cov(RS)                                                     ## covariance matrix.
+  eps=10^(-15)
+  RR=chol(Q+diag(eps,n))
+  list_lambda=seq(0,5,1)
+  lgth.listlam=length(list_lambda)
+  bp=0.01
+  cost=bp*sqrt((M.p)/Mdv2)
+
+
+
+
+# We rewrite the matricial objective function as a scalar one ,
+#that we will plugin qobj below
+
+I=as.matrix(seq(1,n,1))
+p=n
+
+for( i in 2 : n) {
+  K=as.matrix(seq(i, n , 1))
+  p=p+length(K)
+  I=matrix (rbind(I ,K) , nrow=p , ncol =1)
+}
+
+J=as.matrix(rep(1,n))
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix (rep (i , n-i +1))
+  p=p+length(K)
+  J=matrix(rbind(J ,K),nrow=p ,ncol=1)
+}
+
+V=as.matrix (Q[ 1 , 1 : n ] )
+p=n
+
+for(i in 2 : n ) {
+  K=as.matrix(Q[i, i:n])
+  p=p+length(K)
+  V=matrix(rbind(V,K),nrow=p ,ncol =1)
+}
+
+# The Quadratic part of the problem 
+I=as.matrix(rbind(I,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs 
+J=as.matrix(rbind(J,matrix(seq((3*n+1),(5*n),1)))) ## for quadratic transaction costs
+V=as.matrix(rbind(V,t(T_cost.q)))                  ## for quadratic transaction costs
+
+### variables upper and lower bounds  
+bl_xi=-Delta_i/M.p
+bl_bi_p=as.matrix(rep(0,n))
+bl_bi_n=as.matrix(rep(0,n))
+bl_ti_p=as.matrix(rep(0,n))
+bl_ti_n=as.matrix(rep(0,n))
+bl_yi= 0
+
+bl_x=t(rbind(bl_xi,bl_bi_p,bl_bi_n,bl_ti_p,bl_ti_n,bl_yi)) ## variables lower bounds   
+
+bu_xi=Delta_i/M.p
+bu_bi_p=Delta_i/M.p
+bu_bi_n=Delta_i/M.p
+bu_ti_p=t.i/M.p
+bu_ti_n=t.i/M.p
+bu_yi=Inf
+
+bu_x=t(rbind(bu_xi,bu_bi_p,bu_bi_n,bu_ti_p,bu_ti_n,bu_yi)) ## variables upper bounds
+
+###Constraint matrix####
+
+# Weights decomposition  xi -(bi+) + (bi-) = 0
+xi_bi_decomp=cbind(diag(1,n),-diag(1,n),diag(1,n),diag(0,n),diag(0,n),as.matrix(rep(0,n)))
+
+# turnover decomposition xi -(ti+) + (ti-) = xiold
+xi_ti_decomp=cbind(diag(1,n),diag(0,n),diag(0,n),-diag(1,n),diag(1,n),as.matrix(rep(0,n))) 
+
+#Book size constraint sum|xi|<M
+Book_size=t(rbind(as.matrix(rep(0,n)),as.matrix(rep(1,2*n)),as.matrix(rep(0,2*n)),0))
+
+# Portfolio delta constraint |sum(xi)|< Delta 
+Delta_portfo=t(rbind(as.matrix(rep(1,n)),as.matrix(rep(0,4*n)),0)) 
+
+# EUR booksize constraint sum(|xi_EUR|)=sum((bi_EUR+) + (bi_EUR-)) < M_EUR/norm
+EUR_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[1,]),
+                     as.matrix(currency_matrix[1,]),as.matrix(rep(0,2*n)),0)) 
+
+# GBP booksizeconstraint sum(|xi_GBP|)=sum((bi_GBP+) + (bi_GBP-)) < M_GBP/norm                          
+GBP_Booksize=t(rbind(as.matrix(rep(0,n)),as.matrix(currency_matrix[2,]),
+                     as.matrix(currency_matrix[2,]),as.matrix(rep(0,2*n)),0)) 
+
+# Trading constraints sum(|ti|) < t.p/norm
+Trading_constr=t(rbind(as.matrix(rep(0,3*n)),as.matrix(rep(1,2*n)),0))
+
+# Delta EUR portfolio constraint |sum(xi_EUR)| < Delta.EUR
+Delta_EUR=t(rbind(as.matrix(currency_matrix[1,]),as.matrix(rep(0,4*n)),0)) 
+
+# Delta GBP portfolio constraint |sum(xi_GBP)| < Delta.GBP
+Delta_GBP=t(rbind(as.matrix(currency_matrix[2,]),as.matrix(rep(0,4*n)),0)) 
+
+# Sector constraint sum i=1,n |xi  in Sector j|< M.sector.j for all sectors 
+Sector_Size=cbind( matrix (rep(0, nrow(Sector)*n), nrow(Sector), n),
+                   Sector,Sector,matrix (rep(0, nrow(Sector)*2*n), 
+                                         nrow(Sector), 2*n),0)
+# Cost constraints 
+cost_costr=t(rbind(as.matrix(rep(0,3*n)),t(T_cost.l),-1))
+
+# Constraint matrix
+a= rbind(xi_bi_decomp,xi_ti_decomp,Book_size,Delta_portfo,EUR_Booksize,GBP_Booksize,Trading_constr,
+         Delta_EUR,Delta_GBP,Sector_Size,cost_costr)        ###constraints matrix bl_c < a%*%x < bu_c
+
+
+
+
+lo11 <- list ()
+lo11$sense <- "max"
+lo11$A <- Matrix(a,byrow=TRUE,sparse=TRUE)
+
+
+
+lo11$bx <- rbind (blx=bl_x,bux=bu_x);
+lo11$iparam <- list ( OPTIMIZER ="OPTIMIZER_FREE_SIMPLEX");
+#### Linear problem using simplex  ####
+#### Mosek selects dual or primal   ####
+
+
+j=0
+for(lambda in list_lambda){
+for(i in 1:19){
+  
+  ###constraints bounds###
+  
+  #lower bounds
+  bl_c=t(rbind(as.matrix(rep(0,n)),xiold,0,-Delta/norm,as.matrix(rep(0,2)),0,-Delta_cur/norm,as.matrix(rep(0,nrow(Sector))),-Inf))
+  #upper bounds
+  bu_c=t(rbind(as.matrix(rep(0,n)),xiold,M.p/norm,Delta/norm,M.cur/norm,t.p/norm,Delta_cur/norm,M.sector/norm,0))
+  lo11$bc <- rbind (blc=bl_c,buc=bu_c); 
+  
+  ### The linear part of the problem.
+  f11<-t(-as.matrix(cbind(t(as.matrix(returns[20-i,])),matrix(0,nrow=1,ncol=4*n),0)))
+  
+
+lo11$c <- -f11
+
+rlsf2 <- mosek(lo11)
+
+X1=rlsf2$sol$bas$xx[1:n]
+ #plot(sort(rlsf2$sol$bas$xx[1:n],decreasing=TRUE),type="h",ylab= "Weight value",xlab= "Stock weights",las=1)
+j=j+1
+R11[i,1]=-t(f11[1:n])%*%X1
+R11[i,2]=t(X1)%*%Q%*%X1
+xiold=as.matrix(X1,nrow=n)
+}
+j=lambda+1
+mean.ret=mean(R11[,1])
+mean.ris=mean(R11[,2])
+RETURN1=c(RETURN1,R11[,1])
+RISK1=c(RISK1,R11[,2])
+RETURN11=c(RETURN11,mean.ret)
+RISK11=c(RISK11,mean.ris)
+}
+}
+
+R11[,1]
+R11[,2]
+
+-t(cost[20-i,])%*%(abs(X1)^(3/2))
